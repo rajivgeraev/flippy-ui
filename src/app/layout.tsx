@@ -1,5 +1,6 @@
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { Root } from "@/components/Root/Root";
 
 export default async function RootLayout({
   children,
@@ -16,7 +17,7 @@ export default async function RootLayout({
     <html lang={locale}>
       <body>
         <NextIntlClientProvider messages={messages}>
-          {children}
+          <Root>{children}</Root>
         </NextIntlClientProvider>
       </body>
     </html>
