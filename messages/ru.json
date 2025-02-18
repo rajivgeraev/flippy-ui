@@ -1,5 +1,9 @@
 {
-  "HomePage": {
-    "title": "Привет мир!"
+  "Home": {
+    "title": "Привет мир!",
+    "app": "Приложение"
+  },
+  "Telegram": {
+    "user_info": "User information"
   }
 }

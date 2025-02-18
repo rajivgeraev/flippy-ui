@@ -1,5 +1,9 @@
 {
-  "HomePage": {
-    "title": "Hello world!"
+  "Home": {
+    "title": "Hello world!",
+    "app": "Application"
+  },
+  "Telegram": {
+    "user_info": "Информация о пользователе"
   }
 }
