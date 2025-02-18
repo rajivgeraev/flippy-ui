@@ -12,7 +12,7 @@ import {
 
 // import { ErrorBoundary } from '@/components/ErrorBoundary';
 // import { ErrorPage } from '@/components/ErrorPage';
-import { useTelegramMock } from '@/hooks/useTelegramMock';
+import { useTelegramMock } from "@/hooks/useTelegramMock";
 import { useDidMount } from "@/hooks/useDidMount";
 import { useClientOnce } from "@/hooks/useClientOnce";
 import { setLocale } from "@/core/i18n/locale";
