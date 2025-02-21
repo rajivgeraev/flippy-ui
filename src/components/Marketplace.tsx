@@ -10,6 +10,8 @@ const products = [
     description: "Большой плюшевый мишка, мягкий и приятный на ощупь.",
     images: [
       "https://img.freepik.com/premium-photo/toys-kids-play-time-colorful-fun-composition_594847-3791.jpg",
+      "https://img.freepik.com/premium-photo/toys-collection-isolated-background_488220-1075.jpg",
+      "https://img.freepik.com/premium-photo/colorful-educational-toys-children-white-surface_168508-305.jpg",
     ],
   },
   {
@@ -18,6 +20,8 @@ const products = [
     description: "Набор LEGO для создания замка.",
     images: [
       "https://img.freepik.com/premium-photo/lego-star-wars-figures-are-standing-table-with-gun-generative-ai_958138-93159.jpg",
+      "https://img.freepik.com/premium-photo/quotare-you-lookingquot_1025557-12229.jpg",
+      "https://img.freepik.com/premium-photo/space-station-soiree-birthday-cake_1170794-26264.jpg",
     ],
   },
 ];

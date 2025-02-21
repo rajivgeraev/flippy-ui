@@ -23,14 +23,14 @@ export function init(): void {
   backButton.isSupported() && backButton.mount();
   miniApp.mount();
   initData.restore();
-  void viewport.mount().then(() => {
-    // viewport.bindCssVars();
-    if (viewport.requestFullscreen.isAvailable()) {
-      void viewport.requestFullscreen().then(() => {
-        // viewport.isFullscreen(); // true
-      });
-    }
-  }).catch(e => {
-    console.error('Something went wrong mounting the viewport', e);
-  });
+  // void viewport.mount().then(() => {
+  //   // viewport.bindCssVars();
+  //   if (viewport.requestFullscreen.isAvailable()) {
+  //     void viewport.requestFullscreen().then(() => {
+  //       viewport.isFullscreen(); // true
+  //     });
+  //   }
+  // }).catch(e => {
+  //   console.error('Something went wrong mounting the viewport', e);
+  // });
 }
