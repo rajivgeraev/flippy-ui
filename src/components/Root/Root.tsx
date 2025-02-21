@@ -3,7 +3,7 @@
 import { type PropsWithChildren, useEffect } from "react";
 import {
   initData,
-  miniApp,
+  // miniApp,
   // useLaunchParams,
   useSignal,
 } from "@telegram-apps/sdk-react";
