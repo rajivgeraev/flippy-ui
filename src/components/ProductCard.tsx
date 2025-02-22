@@ -24,12 +24,13 @@ export default function ProductCard({ product }: ProductProps) {
       className="relative w-full shadow-lg rounded-2xl flex flex-col overflow-hidden cursor-pointer"
       onClick={() => {}}
     >
-      <div className="relative w-full h-64">
+      <div className="relative w-full h-52">
         <Swiper
           modules={[Pagination]}
           pagination={{ clickable: true }}
           spaceBetween={10}
           slidesPerView={1}
+          loop={true}
           className="w-full h-full"
         >
           {product.images.map((img, index) => (
@@ -43,7 +44,7 @@ export default function ProductCard({ product }: ProductProps) {
           ))}
         </Swiper>
         <button
-          className="absolute top-2 right-2 z-10"
+          className="absolute top-2.5 right-2.5 z-10"
           onClick={(e) => {
             e.stopPropagation();
             setFavorite(!favorite);
@@ -53,7 +54,7 @@ export default function ProductCard({ product }: ProductProps) {
             className={
               favorite
                 ? "text-red-500 stroke-2 stroke-white"
-                : "text-gray-900 stroke-2 stroke-black"
+                : "text-black stroke-2 stroke-black"
             }
             fill={favorite ? "red" : "white"}
           />
