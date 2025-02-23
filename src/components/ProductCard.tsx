@@ -6,6 +6,7 @@ import "swiper/css";
 import "swiper/css/pagination";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
+import TradeModal from "@/components/TradeModal";
 
 interface ProductProps {
   product: {
@@ -13,11 +14,14 @@ interface ProductProps {
     name: string;
     description: string;
     images: string[];
+    allowSale?: boolean;
   };
+  userToys: { id: number; name: string; image: string }[];
 }
 
-export default function ProductCard({ product }: ProductProps) {
+export default function ProductCard({ product, userToys }: ProductProps) {
   const [favorite, setFavorite] = useState(false);
+  const [isTradeOpen, setIsTradeOpen] = useState(false);
 
   return (
     <div
@@ -64,11 +68,37 @@ export default function ProductCard({ product }: ProductProps) {
         <h3 className="text-lg font-semibold">{product.name}</h3>
         <p className="text-sm text-gray-600">{product.description}</p>
         <div className="mt-auto pb-1">
-          <button className="w-full bg-blue-500 text-white rounded-lg p-2">
+          <button
+            className="w-full bg-blue-500 text-white rounded-lg p-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsTradeOpen(true);
+            }}
+          >
             К обмену
           </button>
         </div>
       </div>
+
+      {/* Модальное окно "Предложить обмен" */}
+      <TradeModal
+        isOpen={isTradeOpen}
+        onClose={() => setIsTradeOpen(false)}
+        userToys={userToys}
+        onSubmit={(selectedToy, requestSale) => {
+          alert(
+            requestSale
+              ? "Вы отправили запрос на продажу!"
+              : `Вы предложили ${
+                  selectedToy
+                    ? userToys.find((t) => t.id === selectedToy)?.name
+                    : "игрушку"
+                }`
+          );
+          setIsTradeOpen(false);
+        }}
+        allowSale={product.allowSale}
+      />
     </div>
   );
 }

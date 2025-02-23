@@ -1,7 +1,14 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Home, ClipboardList, MessageCircle, User, Heart } from "lucide-react";
+import {
+  Home,
+  ClipboardList,
+  MessageCircle,
+  User,
+  Heart,
+  ArrowRightLeft,
+} from "lucide-react";
 
 const BottomNavigation = () => {
   const pathname = usePathname();
@@ -42,14 +49,13 @@ const BottomNavigation = () => {
         <span className="text-xs">Объявления</span>
       </button>
       <button
-        className={`flex flex-col items-center ${
-          pathname === "/messages" ? "text-blue-500" : "text-gray-700"
-        }`}
-        onClick={() => router.push("/messages")}
+        className="flex flex-col items-center text-gray-700"
+        onClick={() => (window.location.href = "/trades")}
       >
-        <MessageCircle className="w-6 h-6" />
-        <span className="text-xs">Сообщения</span>
+        <ArrowRightLeft className="w-6 h-6" />
+        <span className="text-xs">Обмены</span>
       </button>
+
       <button
         className={`flex flex-col items-center ${
           pathname === "/profile" ? "text-blue-500" : "text-gray-700"
