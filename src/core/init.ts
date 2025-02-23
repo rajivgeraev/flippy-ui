@@ -5,7 +5,8 @@ import {
   miniApp,
   initData,
   // $debug,
-  swipeBehavior,
+  disableVerticalSwipes,
+  isVerticalSwipesEnabled,
   init as initSDK,
 } from '@telegram-apps/sdk-react';
 
@@ -26,10 +27,6 @@ export function init(): void {
   initData.restore();
   void viewport.mount().then((data) => {
     // viewport.bindCssVars();
-    console.log(data);
-    if (!viewport.isExpanded) {
-      viewport.expand(); // will expand the Mini App, if it's not
-    }
 
     // if (viewport.requestFullscreen.isAvailable()) {
     //   void viewport.requestFullscreen().then(() => {
@@ -40,15 +37,11 @@ export function init(): void {
     console.error('Something went wrong mounting the viewport', e);
   });
 
-  if (swipeBehavior.mount.isAvailable()) {
-    swipeBehavior.mount();
-    swipeBehavior.isMounted(); // true
-
-    if (swipeBehavior.disableVertical.isAvailable()) {
-      swipeBehavior.disableVertical();
-      swipeBehavior.isVerticalEnabled(); // false
-    }
+  if (disableVerticalSwipes.isAvailable()) {
+    disableVerticalSwipes();
+    isVerticalSwipesEnabled(); // false
   }
+
 
 
 }
