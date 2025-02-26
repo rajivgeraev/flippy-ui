@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from 'react';
 import { initData } from '@telegram-apps/sdk-react';
 import { useSignal } from '@telegram-apps/sdk-react';
