@@ -39,7 +39,7 @@ export function init(): void {
 
   if (disableVerticalSwipes.isAvailable()) {
     disableVerticalSwipes();
-    isVerticalSwipesEnabled(); // false
+    console.log("isVerticalSwipesEnabled", isVerticalSwipesEnabled()); // false
   }
 
 
