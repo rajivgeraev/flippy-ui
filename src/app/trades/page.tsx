@@ -9,6 +9,7 @@ import {
   Check,
   X,
 } from "lucide-react";
+import Link from "next/link";
 
 const tabs = [
   { id: "incoming", name: "Входящие", icon: <Inbox className="w-5 h-5" /> },
@@ -95,7 +96,11 @@ export default function TradesPage() {
   };
 
   // Создание чата после принятия обмена
-  const startChat = (trade: { id: number; sender: string; senderAvatar: string }) => {
+  const startChat = (trade: {
+    id: number;
+    sender: string;
+    senderAvatar: string;
+  }) => {
     setChats((prev) => [
       ...prev,
       {
@@ -305,10 +310,10 @@ export default function TradesPage() {
             </p>
           ) : (
             chats.map((chat) => (
-              <div
+              <Link
                 key={chat.id}
+                href={`/chat/${chat.id}`}
                 className="p-4 bg-white shadow-md rounded-lg flex items-center gap-3 border cursor-pointer"
-                onClick={() => alert(`Открываем чат с ${chat.user}`)}
               >
                 <img
                   src={chat.userAvatar}
@@ -321,7 +326,7 @@ export default function TradesPage() {
                     Нажмите, чтобы обсудить обмен
                   </p>
                 </div>
-              </div>
+              </Link>
             ))
           )}
         </div>
