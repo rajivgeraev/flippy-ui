@@ -1,11 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import ProtectedComponent from "@/components/ProtectedComponent";
 import { User } from "lucide-react";
 
 export default function ProfilePage() {
-  const { isAuthenticated, isLoading, error, login, logout } = useAuthContext();
+  const { isAuthenticated, isLoading, error, retry } = useAuthContext();
+
+  // Автоматическая попытка повторной аутентификации при ошибке
+  useEffect(() => {
+    if (!isAuthenticated && !isLoading && error) {
+      // Повторная попытка будет выполнена автоматически через хук useAuth
+    }
+  }, [isAuthenticated, isLoading, error]);
 
   return (
     <div className="pb-16">
@@ -16,7 +24,8 @@ export default function ProfilePage() {
 
       {error && (
         <div className="m-4 p-4 bg-red-100 text-red-700 rounded-md">
-          Ошибка: {error}
+          <p>Ошибка аутентификации. Пробуем подключиться снова...</p>
+          <p className="text-sm mt-2 text-gray-600">{error}</p>
         </div>
       )}
 
@@ -25,27 +34,7 @@ export default function ProfilePage() {
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
         </div>
       ) : (
-        <>
-          <ProtectedComponent />
-
-          <div className="flex justify-center mt-4">
-            {isAuthenticated ? (
-              <button
-                onClick={logout}
-                className="px-4 py-2 bg-red-500 text-white rounded-md"
-              >
-                Выйти
-              </button>
-            ) : (
-              <button
-                onClick={login}
-                className="px-4 py-2 bg-blue-500 text-white rounded-md"
-              >
-                Войти через Telegram
-              </button>
-            )}
-          </div>
-        </>
+        <ProtectedComponent />
       )}
     </div>
   );

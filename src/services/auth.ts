@@ -14,7 +14,7 @@ interface AuthResponse {
 
 // Класс для работы с аутентификацией
 export class AuthService {
-    private static readonly TOKEN_KEY = 'flippy_auth_token';
+    private static readonly TOKEN_KEY = 'jwt_token';
     private static readonly USER_KEY = 'flippy_user';
     private static readonly API_URL = 'https://flippy-api-production.up.railway.app';
 
@@ -28,12 +28,6 @@ export class AuthService {
     static setToken(token: string, user: AuthResponse['user']): void {
         localStorage.setItem(this.TOKEN_KEY, token);
         localStorage.setItem(this.USER_KEY, JSON.stringify(user));
-    }
-
-    // Очистка данных аутентификации
-    static clearToken(): void {
-        localStorage.removeItem(this.TOKEN_KEY);
-        localStorage.removeItem(this.USER_KEY);
     }
 
     // Проверка, аутентифицирован ли пользователь

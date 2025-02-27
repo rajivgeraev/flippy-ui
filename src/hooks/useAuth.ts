@@ -13,7 +13,8 @@ export function useAuth() {
 
     const initDataState = useSignal(initData.state);
 
-    const login = async () => {
+    // Автоматическая аутентификация
+    const authenticateUser = async () => {
         if (!initDataState) {
             setError('Ошибка получения данных из Telegram Mini App');
             return;
@@ -35,36 +36,33 @@ export function useAuth() {
         } catch (err) {
             console.error('Ошибка аутентификации:', err);
             setError(err instanceof Error ? err.message : 'Ошибка аутентификации');
+
+            // Устанавливаем таймер для повторной попытки
+            setTimeout(() => {
+                authenticateUser();
+            }, 3000);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const logout = () => {
-        AuthService.clearToken();
-        setIsAuthenticated(false);
-        setUserDetails(null);
-    };
-
     // Проверяем аутентификацию при загрузке страницы
     useEffect(() => {
-        setIsAuthenticated(AuthService.isAuthenticated());
+        const isAlreadyAuthenticated = AuthService.isAuthenticated();
+        setIsAuthenticated(isAlreadyAuthenticated);
         setUserDetails(AuthService.getUser());
-    }, []);
 
-    // Автоматическая аутентификация при загрузке страницы, если есть initData
-    useEffect(() => {
-        if (initDataState && !isAuthenticated && !isLoading) {
-            login();
+        // Если не аутентифицирован и есть initData, пробуем аутентифицироваться
+        if (!isAlreadyAuthenticated && initDataState) {
+            authenticateUser();
         }
-    }, [initDataState, isAuthenticated]);
+    }, [initDataState]);
 
     return {
         isAuthenticated,
         isLoading,
         error,
         userDetails,
-        login,
-        logout
+        retry: authenticateUser
     };
 }

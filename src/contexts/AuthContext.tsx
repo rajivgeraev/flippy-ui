@@ -8,8 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   userDetails: any | null;
-  login: () => Promise<void>;
-  logout: () => void;
+  retry: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
