@@ -49,13 +49,14 @@ const BottomNavigation = () => {
         <span className="text-xs">Объявления</span>
       </button>
       <button
-        className="flex flex-col items-center text-gray-700"
-        onClick={() => (window.location.href = "/trades")}
+        className={`flex flex-col items-center ${
+          pathname === "/trades" ? "text-blue-500" : "text-gray-700"
+        }`}
+        onClick={() => router.push("/trades")}
       >
         <ArrowRightLeft className="w-6 h-6" />
         <span className="text-xs">Обмены</span>
       </button>
-
       <button
         className={`flex flex-col items-center ${
           pathname === "/profile" ? "text-blue-500" : "text-gray-700"
