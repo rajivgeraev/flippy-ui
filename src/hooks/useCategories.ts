@@ -16,7 +16,7 @@ export function useCategories() {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/categories`);
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/categories`);
                 if (!response.ok) throw new Error("Ошибка загрузки категорий");
 
                 const data = await response.json();

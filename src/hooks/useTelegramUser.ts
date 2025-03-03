@@ -3,9 +3,14 @@
 import { useMemo } from 'react';
 import { useSignal, initData, init, type User } from '@telegram-apps/sdk-react';
 import { TelegramUserInfo } from '@/types/TelegramUserInfo';
-
+import { isTelegramContext } from '@/core/init';
 
 export function useTelegramUser(): TelegramUserInfo | null {
+    // Если не в контексте Telegram, сразу возвращаем null
+    if (!isTelegramContext()) {
+        return null;
+    }
+
     const initDataState = useSignal(initData.state);
 
     return useMemo(() => {

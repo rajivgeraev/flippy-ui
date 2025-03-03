@@ -1,47 +1,61 @@
 import {
   backButton,
   viewport,
-  // themeParams,
   miniApp,
   initData,
-  // $debug,
   disableVerticalSwipes,
   isVerticalSwipesEnabled,
   init as initSDK,
 } from '@telegram-apps/sdk-react';
 
 /**
- * Initializes the application and configures its dependencies.
+ * Проверяет, запущено ли приложение в режиме разработки
+ */
+export function isDevelopmentMode(): boolean {
+  return process.env.NODE_ENV === "development";
+}
+
+/**
+ * Проверяет, запущено ли приложение в контексте Telegram
+ */
+export function isTelegramContext(): boolean {
+  // Проверка на наличие Telegram WebApp в window
+  if (typeof window !== 'undefined') {
+    return !!window.Telegram?.WebApp;
+  }
+  return false;
+}
+
+/**
+ * Инициализирует приложение и настраивает зависимости
  */
 export function init(): void {
-  // Set @telegram-apps/sdk-react debug mode.
-  // $debug.set(debug);
+  // Проверяем, находимся ли мы в контексте Telegram
+  const isInTelegram = isTelegramContext();
 
-  // Initialize special event handlers for Telegram Desktop, Android, iOS, etc.
-  // Also, configure the package.
-  initSDK();
+  // Инициализируем Telegram SDK только если запущены в Telegram
+  if (isInTelegram) {
+    console.log("Приложение запущено в Telegram, инициализация SDK...");
 
-  // Mount all components used in the project.
-  backButton.isSupported() && backButton.mount();
-  miniApp.mount();
-  initData.restore();
-  void viewport.mount().then((data) => {
-    // viewport.bindCssVars();
+    // Инициализируем SDK Telegram
+    initSDK();
 
-    // if (viewport.requestFullscreen.isAvailable()) {
-    //   void viewport.requestFullscreen().then(() => {
-    //     viewport.isFullscreen(); // true
-    //   });
-    // }
-  }).catch(e => {
-    console.error('Something went wrong mounting the viewport', e);
-  });
+    // Монтируем компоненты
+    backButton.isSupported() && backButton.mount();
+    miniApp.mount();
+    initData.restore();
 
-  if (disableVerticalSwipes.isAvailable()) {
-    disableVerticalSwipes();
-    console.log("isVerticalSwipesEnabled", isVerticalSwipesEnabled()); // false
+    void viewport.mount().then((data) => {
+      // viewport.bindCssVars();
+    }).catch(e => {
+      console.error('Something went wrong mounting the viewport', e);
+    });
+
+    if (disableVerticalSwipes.isAvailable()) {
+      disableVerticalSwipes();
+      isVerticalSwipesEnabled(); // false
+    }
+  } else {
+    console.log("Приложение запущено вне Telegram, SDK не инициализировано");
   }
-
-
-
 }
