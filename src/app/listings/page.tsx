@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ClipboardList, Plus, Pencil, Trash } from "lucide-react";
 
-interface Ad {
+interface Listing {
   id: number;
   name: string;
   status: "Активное" | "Завершено" | "В ожидании";
@@ -11,7 +12,7 @@ interface Ad {
   image: string;
 }
 
-const userAds: Ad[] = [
+const userListings: Listing[] = [
   {
     id: 1,
     name: "Плюшевый мишка",
@@ -30,32 +31,30 @@ const userAds: Ad[] = [
   },
 ];
 
-export default function UserAds() {
-  const [ads, setAds] = useState(userAds);
+export default function UserListings() {
+  const [listings, setListings] = useState(userListings);
 
   return (
     <div className="p-4 pb-24">
-      {" "}
-      {/* Увеличен padding-bottom, чтобы кнопка не перекрывала контент */}
       <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
         <ClipboardList className="w-6 h-6" />
         Мои объявления
       </h1>
       <div className="flex flex-col gap-4">
-        {ads.map((ad) => (
+        {listings.map((listing) => (
           <div
-            key={ad.id}
+            key={listing.id}
             className="flex items-center gap-4 p-4 bg-white shadow rounded-lg"
           >
             <img
-              src={ad.image}
-              alt={ad.name}
+              src={listing.image}
+              alt={listing.name}
               className="w-16 h-16 object-cover rounded-lg"
             />
             <div className="flex-1">
-              <h2 className="text-lg font-semibold">{ad.name}</h2>
+              <h2 className="text-lg font-semibold">{listing.name}</h2>
               <p className="text-sm text-gray-500">
-                {ad.status} • {ad.date}
+                {listing.status} • {listing.date}
               </p>
             </div>
             <button className="p-2 text-gray-600 hover:text-blue-500">
@@ -67,11 +66,14 @@ export default function UserAds() {
           </div>
         ))}
       </div>
-      {/* Фиксированная кнопка "Добавить объявление" над BottomNavigation */}
-      <button className="fixed bottom-[72px] left-1/2 transform -translate-x-1/2 bg-blue-500 text-white rounded-full p-4 shadow-lg flex items-center gap-2 z-50">
-        <Plus className="w-6 h-6" />
-        Добавить объявление
-      </button>
+
+      {/* Кнопка "Добавить объявление" ведет на страницу создания */}
+      <Link href="/listings/create">
+        <button className="fixed bottom-[72px] left-1/2 transform -translate-x-1/2 bg-blue-500 text-white rounded-full p-4 shadow-lg flex items-center gap-2 z-50">
+          <Plus className="w-6 h-6" />
+          Добавить
+        </button>
+      </Link>
     </div>
   );
 }

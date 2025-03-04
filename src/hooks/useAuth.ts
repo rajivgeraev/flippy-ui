@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { initData } from '@telegram-apps/sdk-react';
 import { useSignal } from '@telegram-apps/sdk-react';
 import { AuthService } from '@/services/auth';
+import { isTelegramContext, isDevelopmentMode } from '@/core/init';
 
 export function useAuth() {
     const [isLoading, setIsLoading] = useState(false);
@@ -11,10 +12,12 @@ export function useAuth() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [userDetails, setUserDetails] = useState(AuthService.getUser());
 
-    const initDataState = useSignal(initData.state);
+    const isInTelegram = isTelegramContext();
+    // Используем Telegram initData только если мы в Telegram
+    const initDataState = isInTelegram ? useSignal(initData.state) : null;
 
-    // Автоматическая аутентификация
-    const authenticateUser = async () => {
+    // Автоматическая аутентификация через Telegram
+    const authenticateWithTelegram = async () => {
         if (!initDataState) {
             setError('Ошибка получения данных из Telegram Mini App');
             return;
@@ -39,8 +42,29 @@ export function useAuth() {
 
             // Устанавливаем таймер для повторной попытки
             setTimeout(() => {
-                authenticateUser();
+                authenticateWithTelegram();
             }, 3000);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Аутентификация для режима разработки
+    const authenticateForDevelopment = async () => {
+        try {
+            setIsLoading(true);
+
+            // Получаем ID тестового пользователя из переменных окружения
+            const userId = process.env.NEXT_PUBLIC_TEST_USER_ID || "3b270b4a-6289-47c8-a6d9-5833625b352f";
+
+            // Используем тот же подход, что и в authenticateWithTelegram
+            const data = await AuthService.getTestToken(userId);
+
+            setUserDetails(data.user);
+            setIsAuthenticated(true);
+        } catch (err) {
+            console.error('Ошибка тестовой аутентификации:', err);
+            setError(err instanceof Error ? err.message : 'Ошибка тестовой аутентификации');
         } finally {
             setIsLoading(false);
         }
@@ -52,17 +76,21 @@ export function useAuth() {
         setIsAuthenticated(isAlreadyAuthenticated);
         setUserDetails(AuthService.getUser());
 
-        // Если не аутентифицирован и есть initData, пробуем аутентифицироваться
-        if (!isAlreadyAuthenticated && initDataState) {
-            authenticateUser();
+        // Если не аутентифицирован, выбираем метод аутентификации в зависимости от контекста
+        if (!isAlreadyAuthenticated) {
+            if (isInTelegram && initDataState) {
+                authenticateWithTelegram();
+            } else if (isDevelopmentMode()) {
+                authenticateForDevelopment();
+            }
         }
-    }, [initDataState]);
+    }, [isInTelegram, initDataState]);
 
     return {
         isAuthenticated,
         isLoading,
         error,
         userDetails,
-        retry: authenticateUser
+        retry: isInTelegram ? authenticateWithTelegram : authenticateForDevelopment
     };
 }

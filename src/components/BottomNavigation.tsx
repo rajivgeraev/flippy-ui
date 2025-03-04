@@ -41,9 +41,9 @@ const BottomNavigation = () => {
       </button>
       <button
         className={`flex flex-col items-center ${
-          pathname === "/ads" ? "text-blue-500" : "text-gray-700"
+          pathname === "/listings" ? "text-blue-500" : "text-gray-700"
         }`}
-        onClick={() => router.push("/ads")}
+        onClick={() => router.push("/listings")}
       >
         <ClipboardList className="w-6 h-6" />
         <span className="text-xs">Объявления</span>

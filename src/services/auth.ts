@@ -16,7 +16,7 @@ interface AuthResponse {
 export class AuthService {
     private static readonly TOKEN_KEY = 'jwt_token';
     private static readonly USER_KEY = 'flippy_user';
-    private static readonly API_URL = 'https://flippy-api-production.up.railway.app';
+    private static readonly API_URL = `${process.env.NEXT_PUBLIC_API_URL}`;
 
     // Получение токена из localStorage
     static getToken(): string | null {
@@ -66,6 +66,42 @@ export class AuthService {
         this.setToken(authData.token, authData.user);
         return authData;
     }
+
+    // Получение тестового токена (только для разработки)
+    static async getTestToken(userId: string): Promise<AuthResponse> {
+        const response = await fetch(`${this.API_URL}/api/auth/test-login`, {
+            method: 'POST', // Исправлено на POST
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ user_id: userId }), // Добавляем user_id в тело запроса
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка получения тестового токена');
+        }
+
+        const data = await response.json();
+
+        // Создаем объект пользователя
+        const user = {
+            id: data.user_id,
+            first_name: 'Test',
+            last_name: 'User',
+            username: 'test_user',
+            avatar_url: '',
+        };
+
+        // Сохраняем токен и данные пользователя
+        this.setToken(data.jwt_token, user); // Используем jwt_token вместо token
+
+        return {
+            token: data.jwt_token,
+            user: user
+        };
+    }
+
 
     // Выполнение защищенного запроса к API
     static async fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
