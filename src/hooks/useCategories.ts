@@ -20,9 +20,22 @@ export function useCategories() {
                 if (!response.ok) throw new Error("Ошибка загрузки категорий");
 
                 const data = await response.json();
-                setCategories(data.categories);
+                console.log("Ответ API категорий:", data);
+
+                // Проверяем структуру данных и адаптируем её
+                if (data.categories && Array.isArray(data.categories)) {
+                    // Если пришел объект с полем categories
+                    setCategories(data.categories);
+                } else {
+                    // Неожиданный формат данных
+                    console.error("Неожиданный формат данных категорий:", data);
+                    setError("Получены данные категорий в неверном формате");
+                    setCategories([]);
+                }
             } catch (err) {
+                console.error("Ошибка загрузки категорий:", err);
                 setError("Не удалось загрузить категории");
+                setCategories([]);
             } finally {
                 setLoading(false);
             }
