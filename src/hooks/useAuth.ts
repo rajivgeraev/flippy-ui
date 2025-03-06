@@ -16,7 +16,7 @@ export function useAuth() {
     // Используем Telegram initData только если мы в Telegram
     const initDataState = isInTelegram ? useSignal(initData.state) : null;
 
-    // Автоматическая аутентификация через Telegram
+    // Аутентификация через Telegram
     const authenticateWithTelegram = async () => {
         if (!initDataState) {
             setError('Ошибка получения данных из Telegram Mini App');
@@ -72,17 +72,17 @@ export function useAuth() {
 
     // Проверяем аутентификацию при загрузке страницы
     useEffect(() => {
-        const isAlreadyAuthenticated = AuthService.isAuthenticated();
-        setIsAuthenticated(isAlreadyAuthenticated);
-        setUserDetails(AuthService.getUser());
-
-        // Если не аутентифицирован, выбираем метод аутентификации в зависимости от контекста
-        if (!isAlreadyAuthenticated) {
-            if (isInTelegram && initDataState) {
-                authenticateWithTelegram();
-            } else if (isDevelopmentMode()) {
-                authenticateForDevelopment();
-            }
+        // Независимо от того, есть ли уже токен, всегда пытаемся получить новый
+        if (isInTelegram && initDataState) {
+            authenticateWithTelegram();
+        } else if (isDevelopmentMode()) {
+            authenticateForDevelopment();
+        } else {
+            // Если не в Telegram и не в режиме разработки, 
+            // но у нас есть сохраненные данные - считаем себя аутентифицированными
+            const isAlreadyAuthenticated = AuthService.isAuthenticated();
+            setIsAuthenticated(isAlreadyAuthenticated);
+            setUserDetails(AuthService.getUser());
         }
     }, [isInTelegram, initDataState]);
 

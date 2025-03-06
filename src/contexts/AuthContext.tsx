@@ -1,6 +1,12 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  ReactNode,
+  useState,
+  useEffect,
+} from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AuthContextType {
@@ -15,6 +21,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
+
+  // Автоматическое обновление токена при загрузке компонента
+  useEffect(() => {
+    // Всегда пытаемся обновить токен при загрузке приложения
+    const refreshToken = async () => {
+      try {
+        await auth.retry();
+      } catch (error) {
+        console.error("Ошибка при обновлении токена:", error);
+      }
+    };
+
+    refreshToken();
+  }, []);
 
   return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 }

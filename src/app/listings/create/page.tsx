@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useCategories } from "@/hooks/useCategories";
+import { useCloudinaryUpload } from "@/hooks/useCloudinaryUpload";
+import { useFilePreview } from "@/hooks/useFilePreview";
+import { ListingService } from "@/services/listingService";
 import {
   Upload,
   X,
@@ -9,12 +13,26 @@ import {
   Check,
   ChevronDown,
   Search,
+  Loader2,
 } from "lucide-react";
 
 const MAX_IMAGES = 10;
 
 export default function CreateListingPage() {
-  const { categories, loading, error } = useCategories();
+  const router = useRouter();
+  const {
+    categories,
+    loading: categoriesLoading,
+    error: categoriesError,
+  } = useCategories();
+  const {
+    uploadImages,
+    uploading,
+    progress,
+    error: uploadError,
+  } = useCloudinaryUpload();
+  const { filePreviews, addFiles, removeFile, files } = useFilePreview();
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -23,7 +41,10 @@ export default function CreateListingPage() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [condition, setCondition] = useState("new");
   const [allowTrade, setAllowTrade] = useState(true);
-  const [images, setImages] = useState<File[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<any[]>([]);
+  const [uploadGroupId, setUploadGroupId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // Функция для закрытия дропдауна при клике вне его
   useEffect(() => {
@@ -42,113 +63,170 @@ export default function CreateListingPage() {
     };
   }, []);
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      const fileArray = Array.from(event.target.files);
-      if (images.length + fileArray.length > MAX_IMAGES) {
-        alert("Максимальное количество изображений: 10");
-        return;
-      }
-      setImages([...images, ...fileArray]);
-    }
-  };
+  // Мемоизируем функцию обработки загрузки изображений
+  const handleImageUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (event.target.files && event.target.files.length > 0) {
+        const fileArray = Array.from(event.target.files);
 
-  const removeImage = (index: number) => {
-    setImages(images.filter((_, i) => i !== index));
-  };
+        if (files.length + fileArray.length > MAX_IMAGES) {
+          alert(`Максимальное количество изображений: ${MAX_IMAGES}`);
+          return;
+        }
+
+        // Добавляем файлы в хук предпросмотра
+        addFiles(fileArray);
+
+        try {
+          // Загружаем изображения в Cloudinary
+          const result = await uploadImages(fileArray);
+
+          // Сохраняем идентификатор группы загрузки
+          if (!uploadGroupId) {
+            setUploadGroupId(result.upload_group_id);
+          }
+
+          // Добавляем загруженные изображения к существующим
+          setUploadedImages((prev) => [...prev, ...result.images]);
+        } catch (err) {
+          alert(
+            `Ошибка при загрузке изображений: ${
+              err instanceof Error ? err.message : "Неизвестная ошибка"
+            }`
+          );
+        }
+      }
+    },
+    [files.length, addFiles, uploadImages, uploadGroupId]
+  );
+
+  // Оптимизированная функция удаления изображения
+  const handleRemoveImage = useCallback(
+    (index: number) => {
+      // Удаляем из предпросмотра
+      removeFile(index);
+
+      // Удаляем из загруженных изображений
+      if (index < uploadedImages.length) {
+        setUploadedImages((prev) => prev.filter((_, i) => i !== index));
+      }
+    },
+    [removeFile, uploadedImages.length]
+  );
 
   // Функция для проверки, выбрана ли категория
-  const isCategorySelected = (slug: string) =>
-    selectedCategories.includes(slug);
+  const isCategorySelected = useCallback(
+    (slug: string) => selectedCategories.includes(slug),
+    [selectedCategories]
+  );
 
   // Функция для переключения выбора категории
-  const toggleCategory = (slug: string) => {
-    if (isCategorySelected(slug)) {
-      setSelectedCategories(selectedCategories.filter((s) => s !== slug));
-    } else {
-      setSelectedCategories([...selectedCategories, slug]);
-    }
-  };
+  const toggleCategory = useCallback((slug: string) => {
+    setSelectedCategories((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
+    );
+  }, []);
 
   // Удаление категории из выбранных
-  const removeCategory = (slug: string, e?: React.MouseEvent) => {
+  const removeCategory = useCallback((slug: string, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation(); // Предотвращаем срабатывание родительского onClick
     }
-    setSelectedCategories(selectedCategories.filter((s) => s !== slug));
-  };
+    setSelectedCategories((prev) => prev.filter((s) => s !== slug));
+  }, []);
 
+  // Обработка отправки формы
   const handleSubmit = async () => {
+    // Сбрасываем ошибку формы
+    setFormError(null);
+
     // Валидация формы
     if (!title.trim()) {
-      alert("Пожалуйста, укажите название");
+      setFormError("Пожалуйста, укажите название");
       return;
     }
 
     if (!description.trim()) {
-      alert("Пожалуйста, добавьте описание");
+      setFormError("Пожалуйста, добавьте описание");
       return;
     }
 
     if (selectedCategories.length === 0) {
-      alert("Пожалуйста, выберите хотя бы одну категорию");
+      setFormError("Пожалуйста, выберите хотя бы одну категорию");
       return;
     }
 
-    if (images.length === 0) {
-      alert("Пожалуйста, добавьте хотя бы одно изображение");
+    if (uploadedImages.length === 0) {
+      setFormError("Пожалуйста, добавьте хотя бы одно изображение");
       return;
     }
 
-    // Формирование данных и отправка
-    const formData = new FormData();
-    formData.append("title", title);
-    formData.append("description", description);
-    formData.append("categories", JSON.stringify(selectedCategories));
-    formData.append("condition", condition);
-    formData.append("allowTrade", allowTrade.toString());
-    images.forEach((file, index) => formData.append(`images[${index}]`, file));
+    if (!uploadGroupId) {
+      setFormError("Ошибка идентификатора группы изображений");
+      return;
+    }
+
+    // Устанавливаем флаг создания
+    setCreating(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/listings/create`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      // Отправляем данные на сервер
+      const response = await ListingService.createListing({
+        title,
+        description,
+        categories: selectedCategories,
+        condition,
+        allowTrade,
+        upload_group_id: uploadGroupId,
+        images: uploadedImages,
+      });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Ошибка при создании объявления");
-      }
-
+      // Сообщаем об успехе и перенаправляем на страницу объявлений
       alert("Объявление успешно создано!");
-      // Можно добавить редирект на страницу объявлений
+      router.push("/listings");
     } catch (error) {
-      alert(
-        `Ошибка: ${
+      setFormError(
+        `Ошибка при создании объявления: ${
           error instanceof Error ? error.message : "Неизвестная ошибка"
         }`
       );
+    } finally {
+      setCreating(false);
     }
   };
 
-  // Фильтрованные категории
-  const filteredCategories = categories.filter(
-    (category) =>
-      category.name_ru.toLowerCase().includes(categoryFilter.toLowerCase()) ||
-      category.name_en.toLowerCase().includes(categoryFilter.toLowerCase())
+  // Мемоизируем фильтрованные категории
+  const filteredCategories = useMemo(
+    () =>
+      categories.filter(
+        (category) =>
+          category.name_ru
+            .toLowerCase()
+            .includes(categoryFilter.toLowerCase()) ||
+          category.name_en.toLowerCase().includes(categoryFilter.toLowerCase())
+      ),
+    [categories, categoryFilter]
   );
 
-  // Получаем выбранные категории как объекты
-  const selectedCategoryObjects = selectedCategories
-    .map((slug) => categories.find((c) => c.slug === slug))
-    .filter(Boolean);
+  // Мемоизируем выбранные категории
+  const selectedCategoryObjects = useMemo(
+    () =>
+      selectedCategories
+        .map((slug) => categories.find((c) => c.slug === slug))
+        .filter(Boolean),
+    [selectedCategories, categories]
+  );
 
   return (
-    <div className="p-4">
+    <div className="p-4 pb-24">
       <h1 className="text-2xl font-bold mb-4">Создать объявление</h1>
+
+      {/* Сообщение об ошибке формы */}
+      {formError && (
+        <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
+          {formError}
+        </div>
+      )}
 
       {/* Название */}
       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -238,12 +316,12 @@ export default function CreateListingPage() {
             </div>
 
             {/* Список категорий */}
-            {loading ? (
+            {categoriesLoading ? (
               <p className="p-3 text-center text-gray-500">
                 Загрузка категорий...
               </p>
-            ) : error ? (
-              <p className="p-3 text-center text-red-500">{error}</p>
+            ) : categoriesError ? (
+              <p className="p-3 text-center text-red-500">{categoriesError}</p>
             ) : filteredCategories.length > 0 ? (
               <ul className="py-1">
                 {filteredCategories.map((category) => (
@@ -310,45 +388,84 @@ export default function CreateListingPage() {
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Фотографии
       </label>
-      <div className="flex flex-wrap gap-2">
-        {images.map((file, index) => (
+
+      {uploading && (
+        <div className="mb-4 bg-blue-50 p-3 rounded-lg flex items-center">
+          <Loader2 className="w-5 h-5 mr-2 animate-spin text-blue-500" />
+          <span>Загрузка изображений... {progress}%</span>
+        </div>
+      )}
+
+      {uploadError && (
+        <div className="mb-4 bg-red-100 p-3 rounded-lg text-red-700">
+          {uploadError}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 mb-1">
+        {filePreviews.map((item, index) => (
           <div key={index} className="relative">
             <img
-              src={URL.createObjectURL(file)}
+              src={item.previewUrl}
               className="w-20 h-20 object-cover rounded-lg"
               alt="preview"
             />
             <button
               type="button"
+              disabled={uploading}
               className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
-              onClick={() => removeImage(index)}
+              onClick={() => handleRemoveImage(index)}
             >
               <X size={14} />
             </button>
+            {index === 0 && (
+              <div className="absolute bottom-0 left-0 right-0 bg-blue-500 text-white text-xs p-1 text-center">
+                Главное
+              </div>
+            )}
           </div>
         ))}
-        {images.length < MAX_IMAGES && (
-          <label className="w-20 h-20 flex items-center justify-center border border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+        {filePreviews.length < MAX_IMAGES && (
+          <label
+            className={`w-20 h-20 flex items-center justify-center border border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
+              uploading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
             <Plus size={24} className="text-gray-400" />
             <input
               type="file"
               className="hidden"
               accept="image/*"
               onChange={handleImageUpload}
+              disabled={uploading}
+              multiple
             />
           </label>
         )}
       </div>
-      <p className="text-xs text-gray-500 mt-1 mb-4">
-        Максимум {MAX_IMAGES} изображений
+      <p className="text-xs text-gray-500 mb-4">
+        Максимум {MAX_IMAGES} изображений. Первое загруженное изображение будет
+        главным.
       </p>
 
       {/* Кнопка отправки */}
       <button
-        className="w-full bg-blue-500 text-white rounded-lg p-3 font-medium hover:bg-blue-600 transition-colors"
+        className={`w-full rounded-lg p-3 font-medium transition-colors ${
+          creating || uploading
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-blue-500 text-white hover:bg-blue-600"
+        }`}
         onClick={handleSubmit}
+        disabled={creating || uploading}
       >
-        Опубликовать объявление
+        {creating ? (
+          <span className="flex items-center justify-center">
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Создание объявления...
+          </span>
+        ) : (
+          "Опубликовать объявление"
+        )}
       </button>
     </div>
   );
