@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Search,
   Loader2,
+  Save,
 } from "lucide-react";
 
 const MAX_IMAGES = 10;
@@ -44,7 +45,8 @@ export default function CreateListingPage() {
   const [uploadedImages, setUploadedImages] = useState<any[]>([]);
   const [uploadGroupId, setUploadGroupId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Функция для закрытия дропдауна при клике вне его
   useEffect(() => {
@@ -88,6 +90,15 @@ export default function CreateListingPage() {
 
           // Добавляем загруженные изображения к существующим
           setUploadedImages((prev) => [...prev, ...result.images]);
+
+          // Сбрасываем ошибки для изображений, если они были
+          if (formErrors.images) {
+            setFormErrors((prev) => {
+              const newErrors = { ...prev };
+              delete newErrors.images;
+              return newErrors;
+            });
+          }
         } catch (err) {
           alert(
             `Ошибка при загрузке изображений: ${
@@ -97,7 +108,7 @@ export default function CreateListingPage() {
         }
       }
     },
-    [files.length, addFiles, uploadImages, uploadGroupId]
+    [files.length, addFiles, uploadImages, uploadGroupId, formErrors.images]
   );
 
   // Оптимизированная функция удаления изображения
@@ -121,11 +132,27 @@ export default function CreateListingPage() {
   );
 
   // Функция для переключения выбора категории
-  const toggleCategory = useCallback((slug: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
-    );
-  }, []);
+  const toggleCategory = useCallback(
+    (slug: string) => {
+      setSelectedCategories((prev) => {
+        const result = prev.includes(slug)
+          ? prev.filter((s) => s !== slug)
+          : [...prev, slug];
+
+        // Если добавили категорию, убираем ошибку
+        if (result.length > 0 && formErrors.categories) {
+          setFormErrors((prevErrors) => {
+            const newErrors = { ...prevErrors };
+            delete newErrors.categories;
+            return newErrors;
+          });
+        }
+
+        return result;
+      });
+    },
+    [formErrors.categories]
+  );
 
   // Удаление категории из выбранных
   const removeCategory = useCallback((slug: string, e?: React.MouseEvent) => {
@@ -135,39 +162,52 @@ export default function CreateListingPage() {
     setSelectedCategories((prev) => prev.filter((s) => s !== slug));
   }, []);
 
+  // Валидация формы
+  const validateForm = (isDraft = false) => {
+    const errors: Record<string, string> = {};
+
+    // Обязательные поля не нужны для черновика
+    if (!isDraft) {
+      if (!title.trim()) {
+        errors.title = "Пожалуйста, укажите название";
+      }
+
+      // Описание теперь необязательное
+
+      if (selectedCategories.length === 0) {
+        errors.categories = "Пожалуйста, выберите хотя бы одну категорию";
+      }
+
+      if (uploadedImages.length === 0) {
+        errors.images = "Пожалуйста, добавьте хотя бы одно изображение";
+      }
+
+      if (!uploadGroupId) {
+        errors.uploadGroupId = "Ошибка идентификатора группы изображений";
+      }
+    } else {
+      // Для черновика требуем только название
+      if (!title.trim()) {
+        errors.title = "Название обязательно даже для черновика";
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Обработка отправки формы
-  const handleSubmit = async () => {
-    // Сбрасываем ошибку формы
-    setFormError(null);
-
-    // Валидация формы
-    if (!title.trim()) {
-      setFormError("Пожалуйста, укажите название");
+  const handleSubmit = async (isDraft = false) => {
+    if (!validateForm(isDraft)) {
       return;
     }
 
-    if (!description.trim()) {
-      setFormError("Пожалуйста, добавьте описание");
-      return;
+    // Устанавливаем соответствующий флаг создания
+    if (isDraft) {
+      setSavingDraft(true);
+    } else {
+      setCreating(true);
     }
-
-    if (selectedCategories.length === 0) {
-      setFormError("Пожалуйста, выберите хотя бы одну категорию");
-      return;
-    }
-
-    if (uploadedImages.length === 0) {
-      setFormError("Пожалуйста, добавьте хотя бы одно изображение");
-      return;
-    }
-
-    if (!uploadGroupId) {
-      setFormError("Ошибка идентификатора группы изображений");
-      return;
-    }
-
-    // Устанавливаем флаг создания
-    setCreating(true);
 
     try {
       // Отправляем данные на сервер
@@ -177,21 +217,33 @@ export default function CreateListingPage() {
         categories: selectedCategories,
         condition,
         allowTrade,
-        upload_group_id: uploadGroupId,
+        upload_group_id: uploadGroupId || "", // Для черновика может быть пустым
         images: uploadedImages,
+        status: isDraft ? "draft" : "active", // Отправляем статус объявления
       });
 
       // Сообщаем об успехе и перенаправляем на страницу объявлений
-      alert("Объявление успешно создано!");
+      alert(
+        isDraft
+          ? "Черновик успешно сохранен!"
+          : "Объявление успешно опубликовано!"
+      );
       router.push("/listings");
     } catch (error) {
-      setFormError(
-        `Ошибка при создании объявления: ${
-          error instanceof Error ? error.message : "Неизвестная ошибка"
-        }`
-      );
+      const errorMessage = `Ошибка при ${
+        isDraft ? "сохранении черновика" : "создании объявления"
+      }: ${error instanceof Error ? error.message : "Неизвестная ошибка"}`;
+
+      setFormErrors((prev) => ({
+        ...prev,
+        submit: errorMessage,
+      }));
     } finally {
-      setCreating(false);
+      if (isDraft) {
+        setSavingDraft(false);
+      } else {
+        setCreating(false);
+      }
     }
   };
 
@@ -222,22 +274,36 @@ export default function CreateListingPage() {
       <h1 className="text-2xl font-bold mb-4">Создать объявление</h1>
 
       {/* Сообщение об ошибке формы */}
-      {formError && (
+      {formErrors.submit && (
         <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
-          {formError}
+          {formErrors.submit}
         </div>
       )}
 
       {/* Название */}
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        Название
+        Название <span className="text-red-500">*</span>
       </label>
       <input
-        className="w-full border rounded-lg p-2 mb-4"
+        className={`w-full border rounded-lg p-2 mb-1 ${
+          formErrors.title ? "border-red-500" : ""
+        }`}
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={(e) => {
+          setTitle(e.target.value);
+          if (e.target.value.trim() && formErrors.title) {
+            setFormErrors((prev) => {
+              const newErrors = { ...prev };
+              delete newErrors.title;
+              return newErrors;
+            });
+          }
+        }}
         placeholder="Введите название игрушки"
       />
+      {formErrors.title && (
+        <p className="text-red-500 text-sm mb-4">{formErrors.title}</p>
+      )}
 
       {/* Описание */}
       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -248,18 +314,20 @@ export default function CreateListingPage() {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         rows={4}
-        placeholder="Опишите игрушку, её особенности и состояние"
+        placeholder="Опишите игрушку, её особенности и состояние (необязательно)"
       />
 
       {/* Категории - мультиселект с интегрированными тегами */}
       <div className="mb-4 relative" ref={dropdownRef}>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Категории
+          Категории <span className="text-red-500">*</span>
         </label>
 
         {/* Селектор с интегрированными тегами */}
         <div
-          className="w-full min-h-10 border rounded-lg bg-white cursor-pointer"
+          className={`w-full min-h-10 border rounded-lg bg-white cursor-pointer ${
+            formErrors.categories ? "border-red-500" : ""
+          }`}
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
         >
           <div className="flex flex-wrap items-center p-1 gap-1">
@@ -296,6 +364,9 @@ export default function CreateListingPage() {
             </div>
           </div>
         </div>
+        {formErrors.categories && (
+          <p className="text-red-500 text-sm mt-1">{formErrors.categories}</p>
+        )}
 
         {/* Выпадающий список категорий */}
         {isDropdownOpen && (
@@ -369,7 +440,10 @@ export default function CreateListingPage() {
         onChange={(e) => setCondition(e.target.value)}
       >
         <option value="new">Новое</option>
+        <option value="excellent">Отличное</option>
+        <option value="good">Хорошее</option>
         <option value="used">Б/у</option>
+        <option value="needs_repair">Требует ремонта</option>
         <option value="damaged">Поврежденное</option>
       </select>
 
@@ -386,7 +460,7 @@ export default function CreateListingPage() {
 
       {/* Загрузка изображений */}
       <label className="block text-sm font-medium text-gray-700 mb-2">
-        Фотографии
+        Фотографии <span className="text-red-500">*</span>
       </label>
 
       {uploading && (
@@ -407,13 +481,13 @@ export default function CreateListingPage() {
           <div key={index} className="relative">
             <img
               src={item.previewUrl}
-              className="w-20 h-20 object-cover rounded-lg"
+              className="w-28 h-28 object-cover rounded-lg"
               alt="preview"
             />
             <button
               type="button"
               disabled={uploading}
-              className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+              className="absolute top-0 right-0 bg-red-500 text-white p-1.5 rounded-full"
               onClick={() => handleRemoveImage(index)}
             >
               <X size={14} />
@@ -427,11 +501,16 @@ export default function CreateListingPage() {
         ))}
         {filePreviews.length < MAX_IMAGES && (
           <label
-            className={`w-20 h-20 flex items-center justify-center border border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
+            className={`w-28 h-28 flex items-center justify-center border border-dashed rounded-lg cursor-pointer hover:bg-gray-50 ${
               uploading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
+            } ${formErrors.images ? "border-red-500" : "border-gray-300"}`}
           >
-            <Plus size={24} className="text-gray-400" />
+            <Plus
+              size={24}
+              className={`${
+                formErrors.images ? "text-red-400" : "text-gray-400"
+              }`}
+            />
             <input
               type="file"
               className="hidden"
@@ -443,30 +522,53 @@ export default function CreateListingPage() {
           </label>
         )}
       </div>
+      {formErrors.images && (
+        <p className="text-red-500 text-sm mb-2">{formErrors.images}</p>
+      )}
       <p className="text-xs text-gray-500 mb-4">
         Максимум {MAX_IMAGES} изображений. Первое загруженное изображение будет
         главным.
       </p>
 
-      {/* Кнопка отправки */}
-      <button
-        className={`w-full rounded-lg p-3 font-medium transition-colors ${
-          creating || uploading
-            ? "bg-gray-400 cursor-not-allowed"
-            : "bg-blue-500 text-white hover:bg-blue-600"
-        }`}
-        onClick={handleSubmit}
-        disabled={creating || uploading}
-      >
-        {creating ? (
-          <span className="flex items-center justify-center">
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            Создание объявления...
-          </span>
-        ) : (
-          "Опубликовать объявление"
-        )}
-      </button>
+      {/* Кнопки для отправки и сохранения в черновик */}
+      <div className="flex gap-2">
+        {/* Кнопка публикации */}
+        <button
+          className={`flex-1 rounded-lg p-3 font-medium transition-colors ${
+            creating || uploading || savingDraft
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-blue-500 text-white hover:bg-blue-600"
+          }`}
+          onClick={() => handleSubmit(false)}
+          disabled={creating || uploading || savingDraft}
+        >
+          {creating ? (
+            <span className="flex items-center justify-center">
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Публикация объявления...
+            </span>
+          ) : (
+            "Опубликовать объявление"
+          )}
+        </button>
+
+        {/* Кнопка сохранения в черновик */}
+        <button
+          className={`rounded-lg p-3 font-medium transition-colors flex items-center justify-center ${
+            creating || uploading || savingDraft
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          }`}
+          onClick={() => handleSubmit(true)}
+          disabled={creating || uploading || savingDraft}
+        >
+          {savingDraft ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Save className="w-5 h-5" />
+          )}
+        </button>
+      </div>
     </div>
   );
 }

@@ -14,9 +14,11 @@ interface UploadParams {
 
 interface UploadedImage {
     url: string;
+    preview_url: string;
     public_id: string;
     file_name: string;
     isMain: boolean;
+    cloudinary_response: any; // Сохраняем полный ответ для передачи на сервер
 }
 
 interface UseCloudinaryUploadResult {
@@ -77,11 +79,19 @@ export function useCloudinaryUpload(): UseCloudinaryUploadResult {
 
             const data = await response.json();
 
+            // Получаем URL превью из ответа Cloudinary
+            let previewUrl = '';
+            if (data.eager && data.eager.length > 0) {
+                previewUrl = data.eager[0].secure_url;
+            }
+
             return {
                 url: data.secure_url,
+                preview_url: previewUrl,
                 public_id: data.public_id,
                 file_name: data.original_filename,
-                isMain: false // По умолчанию не основное изображение
+                isMain: false,
+                cloudinary_response: data 
             };
         } catch (err) {
             console.error('Ошибка при загрузке изображения:', err);
