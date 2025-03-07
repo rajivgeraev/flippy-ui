@@ -16,6 +16,9 @@ export function useAuth() {
     // Используем Telegram initData только если мы в Telegram
     const initDataState = isInTelegram ? useSignal(initData.state) : null;
 
+    console.log("== isInTelegram ===>>", isInTelegram)
+    console.log("== initDataState ===>>", initDataState)
+
     // Аутентификация через Telegram
     const authenticateWithTelegram = async () => {
         if (!initDataState) {
