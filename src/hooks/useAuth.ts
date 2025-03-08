@@ -12,18 +12,14 @@ export function useAuth() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [userDetails, setUserDetails] = useState(AuthService.getUser());
 
-    // Проверяем контекст Telegram после инициализации
+    // Всегда вызываем хук useSignal, но используем значение условно
+    const initDataSignal = useSignal(initData.state);
+
+    // Проверяем контекст Telegram
     const isInTelegram = isTelegramContext();
 
-    // Безопасное получение данных initData
-    let initDataState = null;
-    try {
-        if (isInTelegram) {
-            initDataState = initData.state();
-        }
-    } catch (e) {
-        console.warn("Ошибка получения данных Telegram:", e);
-    }
+    // Используем значение сигнала только если мы в Telegram
+    const initDataState = isInTelegram ? initDataSignal : null;
 
     console.log("== isInTelegram ===>>", isInTelegram);
     console.log("== initDataState ===>>", initDataState);
