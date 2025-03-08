@@ -1,6 +1,6 @@
 "use client";
 
-import { type PropsWithChildren, useEffect } from "react";
+import { type PropsWithChildren, useEffect, useState } from "react";
 import { initData, useSignal } from "@telegram-apps/sdk-react";
 import { useTelegramMock } from "@/hooks/useTelegramMock";
 import { useDidMount } from "@/hooks/useDidMount";
@@ -12,27 +12,28 @@ import "./styles.css";
 
 function RootInner({ children }: PropsWithChildren) {
   const isDev = isDevelopmentMode();
-  const isInTelegram = isTelegramContext();
-
-  // Mock Telegram environment in development mode if needed and only if trying to use Telegram
-  if (isDev && isInTelegram) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useTelegramMock();
-  }
+  const [isInTelegram, setIsInTelegram] = useState(false);
 
   // Initialize the library.
   useClientOnce(() => {
+    // Инициализируем SDK
     init();
-    console.log("Application initialized, Telegram context:", isInTelegram);
+
+    // После инициализации определяем контекст
+    const telegramContext = isTelegramContext();
+    setIsInTelegram(telegramContext);
+
+    // Mock только если в режиме разработки и контекст Telegram
+    if (isDev && telegramContext) {
+      useTelegramMock();
+    }
   });
 
   // Устанавливаем локаль только если в контексте Telegram
   if (isInTelegram) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     const initDataUser = useSignal(initData.user);
 
     // Set the user locale.
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       if (
         initDataUser?.language_code === "en" ||

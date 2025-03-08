@@ -12,8 +12,9 @@ export function useAuth() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [userDetails, setUserDetails] = useState(AuthService.getUser());
 
+    // Проверяем контекст Telegram после инициализации
     const isInTelegram = isTelegramContext();
-    // Используем Telegram initData только если мы в Telegram
+    // Используем initData только если в контексте Telegram
     const initDataState = isInTelegram ? useSignal(initData.state) : null;
 
     console.log("== isInTelegram ===>>", isInTelegram)
