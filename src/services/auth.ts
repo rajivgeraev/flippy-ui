@@ -1,3 +1,4 @@
+// src/services/auth.ts
 import { TelegramUserInfo } from '@/types/TelegramUserInfo';
 
 // Интерфейс для ответа от API с токеном
@@ -70,11 +71,11 @@ export class AuthService {
     // Получение тестового токена (только для разработки)
     static async getTestToken(userId: string): Promise<AuthResponse> {
         const response = await fetch(`${this.API_URL}/api/auth/test-login`, {
-            method: 'POST', // Исправлено на POST
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ user_id: userId }), // Добавляем user_id в тело запроса
+            body: JSON.stringify({ user_id: userId }),
         });
 
         if (!response.ok) {
@@ -86,7 +87,7 @@ export class AuthService {
 
         // Создаем объект пользователя
         const user = {
-            id: data.user_id,
+            id: data.user_id || userId,
             first_name: 'Test',
             last_name: 'User',
             username: 'test_user',
@@ -94,14 +95,13 @@ export class AuthService {
         };
 
         // Сохраняем токен и данные пользователя
-        this.setToken(data.jwt_token, user); // Используем jwt_token вместо token
+        this.setToken(data.jwt_token, user);
 
         return {
             token: data.jwt_token,
             user: user
         };
     }
-
 
     // Выполнение защищенного запроса к API
     static async fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
@@ -115,9 +115,34 @@ export class AuthService {
             'Authorization': `Bearer ${token}`,
         };
 
-        return fetch(`${this.API_URL}${url}`, {
+        const response = await fetch(url, {
             ...options,
             headers,
         });
+
+        // Если получили 401 (Unauthorized), токен истек или недействителен
+        if (response.status === 401) {
+            // Будем считать, что любой 401 означает истечение токена
+            console.log("Токен истек, попытка повторной аутентификации...");
+
+            // Очищаем текущий токен
+            localStorage.removeItem(this.TOKEN_KEY);
+
+            // Редиректим на страницу, которая выполнит повторную аутентификацию
+            // (например, профиль или страница входа)
+            if (typeof window !== 'undefined') {
+                window.location.href = "/profile";
+            }
+
+            throw new Error('Сессия истекла, требуется повторная аутентификация');
+        }
+
+        return response;
+    }
+
+    // Выход из системы - очищаем хранилище
+    static logout(): void {
+        localStorage.removeItem(this.TOKEN_KEY);
+        localStorage.removeItem(this.USER_KEY);
     }
 }

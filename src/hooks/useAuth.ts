@@ -11,14 +11,27 @@ export function useAuth() {
     const [error, setError] = useState<string | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [userDetails, setUserDetails] = useState(AuthService.getUser());
+    const [telegramContext, setTelegramContext] = useState(false);
 
-    const isInTelegram = isTelegramContext();
-    // Используем Telegram initData только если мы в Telegram
-    const initDataState = isInTelegram ? useSignal(initData.state) : null;
+    // Всегда вызываем хук useSignal
+    const initDataSignal = useSignal(initData.state);
 
-    // Автоматическая аутентификация через Telegram
+    // Проверяем контекст в useEffect
+    useEffect(() => {
+        // Проверяем после небольшой задержки для завершения инициализации
+        const timer = setTimeout(() => {
+            const isInTelegram = isTelegramContext();
+            setTelegramContext(isInTelegram);
+            console.log("== isInTelegram ===>>", isInTelegram);
+            console.log("== initDataState ===>>", isInTelegram ? initDataSignal : null);
+        }, 100);
+
+        return () => clearTimeout(timer);
+    }, [initDataSignal]);
+
+    // Аутентификация через Telegram (без изменений)...
     const authenticateWithTelegram = async () => {
-        if (!initDataState) {
+        if (!initDataSignal) {
             setError('Ошибка получения данных из Telegram Mini App');
             return;
         }
@@ -72,25 +85,22 @@ export function useAuth() {
 
     // Проверяем аутентификацию при загрузке страницы
     useEffect(() => {
-        const isAlreadyAuthenticated = AuthService.isAuthenticated();
-        setIsAuthenticated(isAlreadyAuthenticated);
-        setUserDetails(AuthService.getUser());
-
-        // Если не аутентифицирован, выбираем метод аутентификации в зависимости от контекста
-        if (!isAlreadyAuthenticated) {
-            if (isInTelegram && initDataState) {
-                authenticateWithTelegram();
-            } else if (isDevelopmentMode()) {
-                authenticateForDevelopment();
-            }
+        if (telegramContext && initDataSignal) {
+            authenticateWithTelegram();
+        } else if (isDevelopmentMode()) {
+            authenticateForDevelopment();
+        } else {
+            const isAlreadyAuthenticated = AuthService.isAuthenticated();
+            setIsAuthenticated(isAlreadyAuthenticated);
+            setUserDetails(AuthService.getUser());
         }
-    }, [isInTelegram, initDataState]);
+    }, [telegramContext, initDataSignal]);
 
     return {
         isAuthenticated,
         isLoading,
         error,
         userDetails,
-        retry: isInTelegram ? authenticateWithTelegram : authenticateForDevelopment
+        retry: telegramContext ? authenticateWithTelegram : authenticateForDevelopment
     };
 }

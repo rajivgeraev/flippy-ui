@@ -6,56 +6,54 @@ import {
   disableVerticalSwipes,
   isVerticalSwipesEnabled,
   init as initSDK,
+  isTMA
 } from '@telegram-apps/sdk-react';
 
-/**
- * Проверяет, запущено ли приложение в режиме разработки
- */
 export function isDevelopmentMode(): boolean {
   return process.env.NODE_ENV === "development";
 }
 
-/**
- * Проверяет, запущено ли приложение в контексте Telegram
- */
+// Обновленная функция проверки контекста
 export function isTelegramContext(): boolean {
-  // Проверка на наличие Telegram WebApp в window
-  if (typeof window !== 'undefined') {
-    return !!window.Telegram?.WebApp;
-  }
-  return false;
+  return isTMA();
 }
 
-/**
- * Инициализирует приложение и настраивает зависимости
- */
+let isSDKInitialized = false;
+
 export function init(): void {
-  // Проверяем, находимся ли мы в контексте Telegram
-  const isInTelegram = isTelegramContext();
+  if (isSDKInitialized) {
+    console.log("SDK уже инициализировано, пропускаем");
+    return;
+  }
 
-  // Инициализируем Telegram SDK только если запущены в Telegram
-  if (isInTelegram) {
-    console.log("Приложение запущено в Telegram, инициализация SDK...");
-
-    // Инициализируем SDK Telegram
+  try {
+    // Безусловно инициализируем SDK
     initSDK();
+    isSDKInitialized = true;
 
-    // Монтируем компоненты
-    backButton.isSupported() && backButton.mount();
-    miniApp.mount();
-    initData.restore();
+    // Теперь проверяем контекст Telegram
+    const isInTelegram = isTelegramContext();
 
-    void viewport.mount().then((data) => {
-      // viewport.bindCssVars();
-    }).catch(e => {
-      console.error('Something went wrong mounting the viewport', e);
-    });
+    console.log("Приложение инициализировано, Telegram контекст:", isInTelegram);
 
-    if (disableVerticalSwipes.isAvailable()) {
-      disableVerticalSwipes();
-      isVerticalSwipesEnabled(); // false
+    // Монтируем компоненты только если в Telegram
+    if (isInTelegram) {
+      if (backButton.isSupported()) backButton.mount();
+      miniApp.mount();
+      initData.restore();
+
+      void viewport.mount().then((data) => {
+        // viewport.bindCssVars();
+      }).catch(e => {
+        console.error('Something went wrong mounting the viewport', e);
+      });
+
+      if (disableVerticalSwipes.isAvailable()) {
+        disableVerticalSwipes();
+        isVerticalSwipesEnabled(); // false
+      }
     }
-  } else {
-    console.log("Приложение запущено вне Telegram, SDK не инициализировано");
+  } catch (error) {
+    console.error("Ошибка инициализации SDK:", error);
   }
 }

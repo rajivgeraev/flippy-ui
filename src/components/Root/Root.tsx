@@ -1,6 +1,6 @@
 "use client";
 
-import { type PropsWithChildren, useEffect } from "react";
+import { type PropsWithChildren, useEffect, useState } from "react";
 import { initData, useSignal } from "@telegram-apps/sdk-react";
 import { useTelegramMock } from "@/hooks/useTelegramMock";
 import { useDidMount } from "@/hooks/useDidMount";
@@ -12,36 +12,39 @@ import "./styles.css";
 
 function RootInner({ children }: PropsWithChildren) {
   const isDev = isDevelopmentMode();
-  const isInTelegram = isTelegramContext();
+  const [isInTelegram, setIsInTelegram] = useState(false);
 
-  // Mock Telegram environment in development mode if needed and only if trying to use Telegram
-  if (isDev && isInTelegram) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useTelegramMock();
-  }
+  // Всегда используем хук useSignal
+  const initDataUser = useSignal(initData.user);
 
-  // Initialize the library.
-  useClientOnce(() => {
+  // Используем useEffect вместо useClientOnce для инициализации
+  useEffect(() => {
+    // Инициализируем SDK
     init();
-    console.log("Application initialized, Telegram context:", isInTelegram);
-  });
 
-  // Устанавливаем локаль только если в контексте Telegram
-  if (isInTelegram) {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const initDataUser = useSignal(initData.user);
+    // Проверяем контекст после инициализации
+    const telegramContext = isTelegramContext();
+    setIsInTelegram(telegramContext);
 
-    // Set the user locale.
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
+    console.log("Application initialized, Telegram context:", telegramContext);
+
+    // Mock только в режиме разработки
+    if (isDev && telegramContext) {
+      useTelegramMock();
+    }
+  }, [isDev]); // Зависимость только от isDev
+
+  // Устанавливаем локаль на основе данных пользователя
+  useEffect(() => {
+    if (isInTelegram && initDataUser) {
       if (
-        initDataUser?.language_code === "en" ||
-        initDataUser?.language_code === "ru"
+        initDataUser.language_code === "en" ||
+        initDataUser.language_code === "ru"
       ) {
         setLocale(initDataUser.language_code);
       }
-    }, [initDataUser]);
-  }
+    }
+  }, [isInTelegram, initDataUser]);
 
   return <>{children}</>;
 }
