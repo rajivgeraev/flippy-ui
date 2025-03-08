@@ -18,10 +18,18 @@ export function isTelegramContext(): boolean {
   return isTMA();
 }
 
+let isSDKInitialized = false;
+
 export function init(): void {
+  if (isSDKInitialized) {
+    console.log("SDK уже инициализировано, пропускаем");
+    return;
+  }
+
   try {
     // Безусловно инициализируем SDK
     initSDK();
+    isSDKInitialized = true;
 
     // Теперь проверяем контекст Telegram
     const isInTelegram = isTelegramContext();
