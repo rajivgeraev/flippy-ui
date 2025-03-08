@@ -11,22 +11,27 @@ export function useAuth() {
     const [error, setError] = useState<string | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [userDetails, setUserDetails] = useState(AuthService.getUser());
+    const [telegramContext, setTelegramContext] = useState(false);
 
-    // Всегда вызываем хук useSignal, но используем значение условно
+    // Всегда вызываем хук useSignal
     const initDataSignal = useSignal(initData.state);
 
-    // Проверяем контекст Telegram
-    const isInTelegram = isTelegramContext();
+    // Проверяем контекст в useEffect
+    useEffect(() => {
+        // Проверяем после небольшой задержки для завершения инициализации
+        const timer = setTimeout(() => {
+            const isInTelegram = isTelegramContext();
+            setTelegramContext(isInTelegram);
+            console.log("== isInTelegram ===>>", isInTelegram);
+            console.log("== initDataState ===>>", isInTelegram ? initDataSignal : null);
+        }, 100);
 
-    // Используем значение сигнала только если мы в Telegram
-    const initDataState = isInTelegram ? initDataSignal : null;
+        return () => clearTimeout(timer);
+    }, [initDataSignal]);
 
-    console.log("== isInTelegram ===>>", isInTelegram);
-    console.log("== initDataState ===>>", initDataState);
-
-    // Аутентификация через Telegram
+    // Аутентификация через Telegram (без изменений)...
     const authenticateWithTelegram = async () => {
-        if (!initDataState) {
+        if (!initDataSignal) {
             setError('Ошибка получения данных из Telegram Mini App');
             return;
         }
@@ -80,25 +85,22 @@ export function useAuth() {
 
     // Проверяем аутентификацию при загрузке страницы
     useEffect(() => {
-        // Независимо от того, есть ли уже токен, всегда пытаемся получить новый
-        if (isInTelegram && initDataState) {
+        if (telegramContext && initDataSignal) {
             authenticateWithTelegram();
         } else if (isDevelopmentMode()) {
             authenticateForDevelopment();
         } else {
-            // Если не в Telegram и не в режиме разработки, 
-            // но у нас есть сохраненные данные - считаем себя аутентифицированными
             const isAlreadyAuthenticated = AuthService.isAuthenticated();
             setIsAuthenticated(isAlreadyAuthenticated);
             setUserDetails(AuthService.getUser());
         }
-    }, [isInTelegram, initDataState]);
+    }, [telegramContext, initDataSignal]);
 
     return {
         isAuthenticated,
         isLoading,
         error,
         userDetails,
-        retry: isInTelegram ? authenticateWithTelegram : authenticateForDevelopment
+        retry: telegramContext ? authenticateWithTelegram : authenticateForDevelopment
     };
 }

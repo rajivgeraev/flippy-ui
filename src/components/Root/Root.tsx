@@ -14,35 +14,37 @@ function RootInner({ children }: PropsWithChildren) {
   const isDev = isDevelopmentMode();
   const [isInTelegram, setIsInTelegram] = useState(false);
 
-  // Initialize the library.
-  useClientOnce(() => {
+  // Всегда используем хук useSignal
+  const initDataUser = useSignal(initData.user);
+
+  // Используем useEffect вместо useClientOnce для инициализации
+  useEffect(() => {
     // Инициализируем SDK
     init();
 
-    // После инициализации определяем контекст
+    // Проверяем контекст после инициализации
     const telegramContext = isTelegramContext();
     setIsInTelegram(telegramContext);
 
-    // Mock только если в режиме разработки и контекст Telegram
+    console.log("Application initialized, Telegram context:", telegramContext);
+
+    // Mock только в режиме разработки
     if (isDev && telegramContext) {
       useTelegramMock();
     }
-  });
+  }, [isDev]); // Зависимость только от isDev
 
-  // Устанавливаем локаль только если в контексте Telegram
-  if (isInTelegram) {
-    const initDataUser = useSignal(initData.user);
-
-    // Set the user locale.
-    useEffect(() => {
+  // Устанавливаем локаль на основе данных пользователя
+  useEffect(() => {
+    if (isInTelegram && initDataUser) {
       if (
-        initDataUser?.language_code === "en" ||
-        initDataUser?.language_code === "ru"
+        initDataUser.language_code === "en" ||
+        initDataUser.language_code === "ru"
       ) {
         setLocale(initDataUser.language_code);
       }
-    }, [initDataUser]);
-  }
+    }
+  }, [isInTelegram, initDataUser]);
 
   return <>{children}</>;
 }
