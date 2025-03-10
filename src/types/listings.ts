@@ -16,6 +16,7 @@ export interface Listing {
     title: string;
     description: string;
     categories: string[];
+    condition: string; 
     allow_trade: boolean;
     status: string;
     images: ListingImage[];
@@ -28,7 +29,7 @@ export interface CreateListingData {
     description: string;
     categories: string[];
     condition: string;
-    allowTrade: boolean;
+    allow_trade: boolean;
     status: string; // 'active' или 'draft'
     upload_group_id: string;
     images: UploadedImage[];

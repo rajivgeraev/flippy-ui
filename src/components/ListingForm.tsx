@@ -58,7 +58,7 @@ export default function ListingForm({
   const [categoryFilter, setCategoryFilter] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [condition, setCondition] = useState("new"); // Возможно, нужно добавить это поле в модель
+  const [condition, setCondition] = useState(initialData?.condition || "new");
   const [allowTrade, setAllowTrade] = useState(
     initialData?.allow_trade ?? true
   );
@@ -66,6 +66,15 @@ export default function ListingForm({
   const [uploadGroupId, setUploadGroupId] = useState<string | null>(null);
   const [savingDraft, setSavingDraft] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const conditionLabels: Record<string, string> = {
+    new: "Новое",
+    excellent: "Отличное",
+    good: "Хорошее",
+    used: "Б/у",
+    needs_repair: "Требует ремонта",
+    damaged: "Поврежденное",
+  };
 
   // Инициализация изображений из initialData, если это режим редактирования
   useEffect(() => {
@@ -269,7 +278,7 @@ export default function ListingForm({
         description,
         categories: selectedCategories,
         condition,
-        allowTrade,
+        allow_trade: allowTrade,
         upload_group_id: uploadGroupId || "", // В режиме редактирования может не быть нового uploadGroupId
         images: uploadedImages,
         status: isDraft ? "draft" : "active", // Отправляем статус объявления
@@ -481,17 +490,22 @@ export default function ListingForm({
         Состояние
       </label>
       <select
-        className="w-full border rounded-lg p-2 mb-4"
+        className="w-full border rounded-lg p-2 mb-1"
         value={condition}
         onChange={(e) => setCondition(e.target.value)}
       >
-        <option value="new">Новое</option>
-        <option value="excellent">Отличное</option>
-        <option value="good">Хорошее</option>
-        <option value="used">Б/у</option>
-        <option value="needs_repair">Требует ремонта</option>
-        <option value="damaged">Поврежденное</option>
+        {Object.entries(conditionLabels).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
       </select>
+
+      {/* Индикатор выбранного состояния */}
+      <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+        <span>Выбрано: </span>
+        <span className="font-medium">{conditionLabels[condition]}</span>
+      </div>
 
       {/* Возможен обмен */}
       <label className="flex items-center gap-2 mb-4">
