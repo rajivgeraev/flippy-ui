@@ -84,17 +84,41 @@ export function useAuth() {
     };
 
     // Проверяем аутентификацию при загрузке страницы
+    // useEffect(() => {
+    //     if (telegramContext && initDataSignal) {
+    //         authenticateWithTelegram();
+    //     } else if (isDevelopmentMode() && process.env.NODE_ENV === 'development') {
+    //         authenticateForDevelopment();
+    //     } else {
+    //         const isAlreadyAuthenticated = AuthService.isAuthenticated();
+    //         setIsAuthenticated(isAlreadyAuthenticated);
+    //         setUserDetails(AuthService.getUser());
+    //     }
+    // }, [telegramContext, initDataSignal]);
+
     useEffect(() => {
-        if (telegramContext && initDataSignal) {
-            authenticateWithTelegram();
-        } else if (isDevelopmentMode() && process.env.NODE_ENV === 'development') {
-            authenticateForDevelopment();
-        } else {
-            const isAlreadyAuthenticated = AuthService.isAuthenticated();
-            setIsAuthenticated(isAlreadyAuthenticated);
+        const initializeAuth = async () => {
+            const isInTelegram = await new Promise(resolve =>
+                setTimeout(() => resolve(isTelegramContext()), 50)
+            );
+
+            if (isDevelopmentMode() && !isInTelegram) {
+                await authenticateForDevelopment();
+                return;
+            }
+
+            if (isInTelegram && initDataSignal) {
+                await authenticateWithTelegram();
+                return;
+            }
+
+            const existingAuth = AuthService.isAuthenticated();
+            setIsAuthenticated(existingAuth);
             setUserDetails(AuthService.getUser());
-        }
-    }, [telegramContext, initDataSignal]);
+        };
+
+        initializeAuth();
+    }, [initDataSignal]);
 
     return {
         isAuthenticated,

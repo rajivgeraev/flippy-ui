@@ -10,8 +10,9 @@ import {
 } from '@telegram-apps/sdk-react';
 
 export function isDevelopmentMode(): boolean {
-  return process.env.NODE_ENV === 'development';
+  return process.env.NEXT_PUBLIC_APP_ENV === 'development';
 }
+
 // Обновленная функция проверки контекста
 export function isTelegramContext(): boolean {
   return isTMA();
