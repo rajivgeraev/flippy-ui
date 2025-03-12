@@ -1,13 +1,18 @@
-// src/components/Marketplace.tsx
 "use client";
 
 import { useRef, useCallback, useEffect } from "react";
 import ProductCard from "@/components/ProductCard";
 import { usePublicListings } from "@/hooks/usePublicListings";
-import { Loader2 } from "lucide-react";
+import { useMyListingsForTrade } from "@/hooks/useMyListingsForTrade";
+import { Loader2, AlertCircle } from "lucide-react";
 
 export default function Marketplace() {
   const { listings, loading, error, loadMore, hasMore } = usePublicListings();
+  const {
+    userToys,
+    loading: toysLoading,
+    error: toysError,
+  } = useMyListingsForTrade();
 
   // Для бесконечной прокрутки
   const observer = useRef<IntersectionObserver | null>(null);
@@ -31,8 +36,16 @@ export default function Marketplace() {
   return (
     <div className="pb-16">
       {error && (
-        <div className="bg-red-100 text-red-700 p-4 mb-4 rounded-lg">
+        <div className="bg-red-100 text-red-700 p-4 mb-4 rounded-lg mx-4">
+          <AlertCircle className="w-5 h-5 inline-block mr-2" />
           {error}
+        </div>
+      )}
+
+      {/* Ошибка загрузки объявлений пользователя для обмена */}
+      {toysError && (
+        <div className="bg-yellow-100 text-yellow-700 p-3 mb-4 rounded-lg mx-4 text-sm">
+          {toysError}
         </div>
       )}
 
@@ -59,19 +72,24 @@ export default function Marketplace() {
                 key={listing.id}
                 ref={isLastElement ? lastListingElementRef : null}
               >
-                <ProductCard
-                  product={productData}
-                  userToys={[]} // здесь будут игрушки пользователя, когда добавим функционал
-                />
+                <ProductCard product={productData} userToys={userToys} />
               </div>
             );
           })}
         </div>
       )}
 
+      {/* Индикатор загрузки */}
       {loading && (
         <div className="flex justify-center items-center my-4">
           <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        </div>
+      )}
+
+      {/* Индикатор при загрузке объявлений пользователя */}
+      {toysLoading && !loading && (
+        <div className="fixed bottom-20 right-4 bg-white shadow-lg rounded-full p-2 z-10">
+          <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
         </div>
       )}
     </div>

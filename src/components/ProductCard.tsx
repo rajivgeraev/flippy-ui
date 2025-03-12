@@ -7,6 +7,7 @@ import "swiper/css/pagination";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
 import TradeModal from "@/components/TradeModal";
+import Link from "next/link";
 
 interface ProductProps {
   product: {
@@ -16,7 +17,7 @@ interface ProductProps {
     images: string[];
     allowSale?: boolean;
   };
-  userToys: { id: number; name: string; image: string }[];
+  userToys: { id: number | string; name: string; image: string }[];
 }
 
 export default function ProductCard({ product, userToys }: ProductProps) {
@@ -110,18 +111,7 @@ export default function ProductCard({ product, userToys }: ProductProps) {
         isOpen={isTradeOpen}
         onClose={() => setIsTradeOpen(false)}
         userToys={userToys}
-        onSubmit={(selectedToy, requestSale) => {
-          alert(
-            requestSale
-              ? "Вы отправили запрос на продажу!"
-              : `Вы предложили ${
-                  selectedToy
-                    ? userToys.find((t) => t.id === selectedToy)?.name
-                    : "игрушку"
-                }`
-          );
-          setIsTradeOpen(false);
-        }}
+        receiverListingId={product.id.toString()}
         allowSale={product.allowSale}
       />
     </div>
