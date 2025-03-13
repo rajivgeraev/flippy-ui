@@ -17,7 +17,6 @@ interface AuthResponse {
 export class AuthService {
     private static readonly TOKEN_KEY = 'jwt_token';
     private static readonly USER_KEY = 'flippy_user';
-    private static readonly API_URL = `${process.env.NEXT_PUBLIC_API_URL}`;
 
     // Получение токена из localStorage
     static getToken(): string | null {
@@ -50,7 +49,7 @@ export class AuthService {
 
     // Аутентификация через Telegram Mini App
     static async authenticateWithTelegram(initData: string): Promise<AuthResponse> {
-        const response = await fetch(`${this.API_URL}/api/auth/telegram`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/telegram`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -70,7 +69,7 @@ export class AuthService {
 
     // Получение тестового токена (только для разработки)
     static async getTestToken(userId: string): Promise<AuthResponse> {
-        const response = await fetch(`${this.API_URL}/api/auth/test-login`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/test-login`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -1,34 +1,16 @@
 // src/services/listingService.ts
 import { AuthService } from './auth';
-
-interface ListingImage {
-    url: string;
-    preview_url?: string;
-    public_id: string;
-    file_name: string;
-    isMain: boolean;
-    cloudinary_response?: any; // Полный ответ от Cloudinary
-}
-
-interface CreateListingData {
-    title: string;
-    description: string;
-    categories: string[];
-    condition: string;
-    allowTrade: boolean;
-    status: string; // 'active' или 'draft'
-    upload_group_id: string;
-    images: ListingImage[];
-}
-
-interface CreateListingResponse {
-    success: boolean;
-    listing_id: string;
-    message: string;
-}
+import {
+    Listing,
+    CreateListingData,
+    ListingsListResponse,
+    ListingDetailResponse,
+    UploadedImage
+} from '@/types/listings';
 
 export class ListingService {
-    static async createListing(data: CreateListingData): Promise<CreateListingResponse> {
+    // Создание объявления
+    static async createListing(data: CreateListingData): Promise<{ success: boolean, listing_id: string, message: string }> {
         try {
             // Подготавливаем данные для отправки
             const requestData = {
@@ -43,7 +25,6 @@ export class ListingService {
                 }))
             };
 
-            // Отправляем запрос на создание объявления
             const response = await AuthService.fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/create`, {
                 method: 'POST',
                 headers: {
@@ -60,6 +41,107 @@ export class ListingService {
             return await response.json();
         } catch (error) {
             console.error('Ошибка при создании объявления:', error);
+            throw error;
+        }
+    }
+
+    // Получение списка объявлений пользователя
+    static async getMyListings(status: string = 'all', offset: number = 0): Promise<ListingsListResponse> {
+        try {
+            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/my`);
+
+            // Добавляем параметры запроса
+            if (status !== 'all') {
+                url.searchParams.append('status', status);
+            }
+            url.searchParams.append('offset', offset.toString());
+
+            const response = await AuthService.fetchWithAuth(url.toString(), {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка при получении списка объявлений');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Ошибка при получении списка объявлений:', error);
+            throw error;
+        }
+    }
+
+    // Получение одного объявления по ID
+    static async getListing(id: string): Promise<ListingDetailResponse> {
+        try {
+            const response = await AuthService.fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/${id}`, {
+                method: 'GET',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка при получении объявления');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`Ошибка при получении объявления с ID ${id}:`, error);
+            throw error;
+        }
+    }
+
+    // Обновление объявления
+    static async updateListing(id: string, data: CreateListingData): Promise<{ success: boolean, listing_id: string, message: string }> {
+        try {
+            // Подготавливаем данные для отправки
+            const requestData = {
+                ...data,
+                images: data.images.map(image => ({
+                    url: image.url,
+                    preview_url: image.preview_url || '',
+                    public_id: image.public_id,
+                    file_name: image.file_name,
+                    isMain: image.isMain,
+                    cloudinary_response: image.cloudinary_response
+                }))
+            };
+
+            const response = await AuthService.fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/${id}`, {
+                method: 'PUT',  // Используем PUT для обновления
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка при обновлении объявления');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Ошибка при обновлении объявления:', error);
+            throw error;
+        }
+    }
+
+    // Удаление объявления
+    static async deleteListing(id: string): Promise<{ success: boolean, message: string }> {
+        try {
+            const response = await AuthService.fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка при удалении объявления');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Ошибка при удалении объявления:', error);
             throw error;
         }
     }

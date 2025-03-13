@@ -87,7 +87,7 @@ export function useAuth() {
     useEffect(() => {
         if (telegramContext && initDataSignal) {
             authenticateWithTelegram();
-        } else if (isDevelopmentMode()) {
+        } else if (isDevelopmentMode() && process.env.NEXT_PUBLIC_APP_ENV === 'development') {
             authenticateForDevelopment();
         } else {
             const isAlreadyAuthenticated = AuthService.isAuthenticated();
@@ -95,6 +95,7 @@ export function useAuth() {
             setUserDetails(AuthService.getUser());
         }
     }, [telegramContext, initDataSignal]);
+
 
     return {
         isAuthenticated,
