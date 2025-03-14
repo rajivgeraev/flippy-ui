@@ -14,7 +14,6 @@ export default function ChatPage() {
   const router = useRouter();
   const chatIdRaw = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  // Проверяем, что chatId определен
   if (!chatIdRaw) {
     return (
       <div className="p-4 bg-red-100 text-red-700 rounded-lg">
@@ -24,7 +23,7 @@ export default function ChatPage() {
     );
   }
 
-  const chatId: string = chatIdRaw; // Теперь TypeScript знает, что chatId — строка
+  const chatId: string = chatIdRaw;
   const {
     isAuthenticated,
     isLoading: authLoading,
@@ -34,17 +33,8 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, loading, error, initialized, refreshMessages } =
+  const { messages, loading, error, initialized, sendMessage } =
     useChatMessages(chatId);
-
-  console.log("ChatPage state:", {
-    chatId,
-    isAuthenticated,
-    loading,
-    initialized,
-    messagesCount: messages?.length,
-    error,
-  });
 
   useEffect(() => {
     if (messagesEndRef.current && messages?.length > 0) {
@@ -57,10 +47,11 @@ export default function ChatPage() {
 
     try {
       setSending(true);
-      await refreshMessages();
+      await sendMessage(newMessage.trim());
       setNewMessage("");
     } catch (error) {
       console.error("Send message error:", error);
+      alert("Не удалось отправить сообщение. Попробуйте еще раз.");
     } finally {
       setSending(false);
     }
@@ -124,7 +115,8 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen">
-      <div className="p-4 border-b flex items-center gap-3 bg-white shadow-md">
+      {/* Фиксированная верхняя панель */}
+      <div className="fixed top-0 left-0 right-0 z-10 p-4 border-b flex items-center gap-3 bg-white shadow-md">
         <Link href="/chats">
           <ArrowLeft className="w-6 h-6 cursor-pointer" />
         </Link>
@@ -143,7 +135,8 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="flex-1 p-4 overflow-y-auto flex flex-col-reverse">
+      {/* Прокручиваемая область сообщений с отступом сверху */}
+      <div className="flex-1 pt-[88px] pb-20 px-4 overflow-y-auto flex flex-col-reverse">
         <div ref={messagesEndRef}></div>
         {!messages || messages.length === 0 ? (
           <div className="text-center text-gray-500 my-10">
@@ -181,7 +174,8 @@ export default function ChatPage() {
         )}
       </div>
 
-      <div className="p-4 border-t bg-white flex items-center gap-2">
+      {/* Нижняя панель ввода сообщения */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-white flex items-center gap-2">
         <input
           type="text"
           value={newMessage}

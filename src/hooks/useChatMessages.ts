@@ -66,7 +66,7 @@ export function useChatMessages(chatId: string) {
         const interval = setInterval(() => {
             console.log('Periodic fetch triggered');
             fetchMessages();
-        }, 10000);
+        }, 100000);
 
         return () => clearInterval(interval);
     }, [chatId, initialized, fetchMessages]);
