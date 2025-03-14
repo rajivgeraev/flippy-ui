@@ -11,9 +11,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const locale = await getLocale();
-
-  // Providing all messages to the client
-  // side is the easiest way to get started
   const messages = await getMessages();
 
   return (
@@ -21,7 +18,9 @@ export default async function RootLayout({
       <body>
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
-            <Root>{children}</Root>
+            <div className="pb-[60px]">
+              <Root>{children}</Root>
+            </div>
             <BottomNavigation />
           </AuthProvider>
         </NextIntlClientProvider>

@@ -1,96 +1,106 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Send, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { useTrades } from "@/hooks/useTrades";
+import { useChatMessages } from "@/hooks/useChatMessages";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { formatDistance } from "date-fns";
+import { ru } from "date-fns/locale";
 
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
-  const tradeId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const chatIdRaw = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  // Получаем данные обмена для отображения чата
-  const { trades, loading, error } = useTrades();
-  const [messages, setMessages] = useState<{ text: string; sender: string }[]>(
-    []
-  );
+  // Проверяем, что chatId определен
+  if (!chatIdRaw) {
+    return (
+      <div className="p-4 bg-red-100 text-red-700 rounded-lg">
+        <AlertCircle className="w-5 h-5 inline-block mr-2" />
+        Ошибка: ID чата не найден
+      </div>
+    );
+  }
+
+  const chatId: string = chatIdRaw; // Теперь TypeScript знает, что chatId — строка
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    userDetails,
+  } = useAuthContext();
   const [newMessage, setNewMessage] = useState("");
-  const [chatInfo, setChatInfo] = useState<{
-    otherUser: { name: string; avatar: string };
-    tradeItems: { sender: string; receiver: string };
-  } | null>(null);
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // При загрузке данных обмена, находим нужный по ID
+  const { messages, loading, error, initialized, refreshMessages } =
+    useChatMessages(chatId);
+
+  console.log("ChatPage state:", {
+    chatId,
+    isAuthenticated,
+    loading,
+    initialized,
+    messagesCount: messages?.length,
+    error,
+  });
+
   useEffect(() => {
-    if (!loading && trades.length > 0) {
-      const trade = trades.find((t) => t.id === tradeId);
-
-      if (trade) {
-        // Инициализируем сообщения для чата
-        setMessages([
-          {
-            text: "Здравствуйте! Давайте обсудим детали обмена.",
-            sender: "system",
-          },
-        ]);
-
-        // Определяем данные второго участника чата и игрушки
-        const sender = trade.sender || {
-          first_name: "Пользователь",
-          avatar_url: "",
-        };
-        const receiver = trade.receiver || {
-          first_name: "Пользователь",
-          avatar_url: "",
-        };
-
-        const senderItem = trade.sender_listing?.title || "Игрушка";
-        const receiverItem = trade.receiver_listing?.title || "Игрушка";
-
-        setChatInfo({
-          otherUser: {
-            name: sender ? sender.first_name || "Пользователь" : "Пользователь",
-            avatar: sender
-              ? sender.avatar_url || "https://via.placeholder.com/40"
-              : "https://via.placeholder.com/40",
-          },
-          tradeItems: {
-            sender: senderItem,
-            receiver: receiverItem,
-          },
-        });
-      } else {
-        // Если обмен не найден, перенаправляем на страницу обменов
-        router.push("/trades");
-      }
+    if (messagesEndRef.current && messages?.length > 0) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [trades, loading, tradeId, router]);
+  }, [messages]);
 
-  const sendMessage = () => {
-    if (newMessage.trim()) {
-      setMessages([...messages, { text: newMessage, sender: "Вы" }]);
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || sending) return;
+
+    try {
+      setSending(true);
+      await refreshMessages();
       setNewMessage("");
-
-      // Имитация ответа через 1-2 секунды (будет заменено на реальный API)
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            text: "Спасибо за сообщение! Я скоро отвечу.",
-            sender: chatInfo?.otherUser.name || "Пользователь",
-          },
-        ]);
-      }, 1000 + Math.random() * 1000);
+    } catch (error) {
+      console.error("Send message error:", error);
+    } finally {
+      setSending(false);
     }
   };
 
-  if (loading) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    try {
+      return formatDistance(new Date(dateString), new Date(), {
+        addSuffix: true,
+        locale: ru,
+      });
+    } catch {
+      return "недавно";
+    }
+  };
+
+  const isOwnMessage = (senderId: string) =>
+    userDetails && userDetails.id === senderId;
+
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <div className="p-4 bg-yellow-50 text-yellow-800 rounded-lg shadow m-4">
+        <AlertCircle className="w-5 h-5 inline-block mr-2" />
+        Для доступа к чату необходимо авторизоваться
+      </div>
+    );
+  }
+
+  if (!initialized) {
     return (
       <div className="flex flex-col items-center justify-center h-screen p-4">
         <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-4" />
-        <p className="text-gray-500">Загрузка чата...</p>
+        <p className="text-gray-500">Инициализация чата...</p>
       </div>
     );
   }
@@ -102,91 +112,95 @@ export default function ChatPage() {
           <AlertCircle className="w-5 h-5 inline-block mr-2" />
           {error}
         </div>
-        <Link href="/trades" className="text-blue-500 flex items-center gap-2">
-          <ArrowLeft className="w-4 h-4" /> Вернуться к обменам
+        <Link href="/chats" className="text-blue-500 flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" /> Вернуться к чатам
         </Link>
       </div>
     );
   }
 
-  if (!chatInfo) {
-    return (
-      <div className="p-4">
-        <p className="text-center text-gray-500">Чат не найден</p>
-        <div className="mt-4 flex justify-center">
-          <Link
-            href="/trades"
-            className="text-blue-500 flex items-center gap-2"
-          >
-            <ArrowLeft className="w-4 h-4" /> Вернуться к обменам
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const otherUserInfo =
+    messages?.find((msg) => !isOwnMessage(msg.sender_id))?.sender || null;
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Заголовок */}
       <div className="p-4 border-b flex items-center gap-3 bg-white shadow-md">
-        <Link href="/trades">
+        <Link href="/chats">
           <ArrowLeft className="w-6 h-6 cursor-pointer" />
         </Link>
         <img
-          src={chatInfo.otherUser.avatar}
-          alt={chatInfo.otherUser.name}
+          src={otherUserInfo?.avatar_url || "https://via.placeholder.com/40"}
+          alt={otherUserInfo?.first_name || "Пользователь"}
           className="w-10 h-10 rounded-full"
         />
         <div>
-          <p className="text-lg font-semibold">{chatInfo.otherUser.name}</p>
-          <p className="text-xs text-gray-500">
-            Обмен: {chatInfo.tradeItems.sender} ↔ {chatInfo.tradeItems.receiver}
+          <p className="text-lg font-semibold">
+            {otherUserInfo?.first_name || "Пользователь"}
           </p>
+          {otherUserInfo?.username && (
+            <p className="text-xs text-gray-500">@{otherUserInfo.username}</p>
+          )}
         </div>
       </div>
 
-      {/* Список сообщений */}
-      <div className="flex-1 p-4 overflow-y-auto">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`mb-2 p-3 rounded-lg max-w-[75%] ${
-              msg.sender === "Вы"
-                ? "bg-blue-500 text-white ml-auto"
-                : msg.sender === "system"
-                ? "bg-gray-100 text-gray-800 mx-auto max-w-[90%] text-center"
-                : "bg-gray-200 text-black"
-            }`}
-          >
-            {msg.sender !== "Вы" && msg.sender !== "system" && (
-              <div className="text-xs text-gray-500 mb-1">{msg.sender}</div>
-            )}
-            {msg.text}
+      <div className="flex-1 p-4 overflow-y-auto flex flex-col-reverse">
+        <div ref={messagesEndRef}></div>
+        {!messages || messages.length === 0 ? (
+          <div className="text-center text-gray-500 my-10">
+            Начните общение, отправив сообщение
           </div>
-        ))}
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`mb-2 ${isOwnMessage(msg.sender_id) ? "ml-auto" : ""}`}
+            >
+              <div
+                className={`p-3 rounded-lg ${
+                  isOwnMessage(msg.sender_id)
+                    ? "bg-blue-500 text-white ml-auto max-w-[75%]"
+                    : "bg-gray-200 text-black max-w-[75%]"
+                }`}
+              >
+                {msg.text}
+              </div>
+              <div
+                className={`text-xs text-gray-500 mt-1 ${
+                  isOwnMessage(msg.sender_id) ? "text-right" : ""
+                }`}
+              >
+                {formatDate(msg.created_at)}
+              </div>
+            </div>
+          ))
+        )}
+        {loading && (
+          <div className="flex justify-center items-center py-4">
+            <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+          </div>
+        )}
       </div>
 
-      {/* Форма ввода */}
       <div className="p-4 border-t bg-white flex items-center gap-2">
         <input
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Напишите сообщение..."
           className="flex-1 p-2 border rounded-lg"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
+          disabled={sending}
         />
         <button
           className="bg-blue-500 text-white p-2 rounded-lg disabled:opacity-50"
-          onClick={sendMessage}
-          disabled={!newMessage.trim()}
+          onClick={handleSendMessage}
+          disabled={!newMessage.trim() || sending}
         >
-          <Send className="w-5 h-5" />
+          {sending ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Send className="w-5 h-5" />
+          )}
         </button>
       </div>
     </div>

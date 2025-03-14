@@ -15,6 +15,7 @@ import { TradeStatusLabels, TradeStatusColors } from "@/types/trades";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { formatDistance } from "date-fns";
 import { ru } from "date-fns/locale";
+import { formatRelativeTime } from "@/utils/dateUtils";
 
 // Типы вкладок
 type TabType = "incoming" | "outgoing" | "chats";
@@ -72,7 +73,6 @@ export default function TradesPage() {
   };
 
   // Определяем список предложений в зависимости от активной вкладки
-  // Добавляем защиту от null/undefined
   const getFilteredTrades = () => {
     if (!trades) return [];
 
@@ -86,14 +86,7 @@ export default function TradesPage() {
 
   // Форматирование даты
   const formatDate = (dateString: string) => {
-    try {
-      return formatDistance(new Date(dateString), new Date(), {
-        addSuffix: true,
-        locale: ru,
-      });
-    } catch (error) {
-      return "неизвестная дата";
-    }
+    return formatRelativeTime(dateString);
   };
 
   // Проверка прав на действия с обменом
@@ -356,13 +349,26 @@ export default function TradesPage() {
                   )}
 
                   {/* Кнопка перехода в чат */}
-                  {activeTab === "chats" && trade.status === "accepted" && (
-                    <Link href={`/chat/${trade.id}`} className="w-full">
-                      <button className="w-full py-2 bg-blue-500 text-white rounded-lg text-sm font-medium mt-2">
-                        💬 Открыть чат
-                      </button>
-                    </Link>
-                  )}
+                  {activeTab === "chats" &&
+                    trade.status === "accepted" &&
+                    trade.chat_id && (
+                      <Link href={`/chat/${trade.chat_id}`} className="w-full">
+                        <button className="w-full py-2 bg-blue-500 text-white rounded-lg text-sm font-medium mt-2">
+                          💬 Открыть чат
+                        </button>
+                      </Link>
+                    )}
+
+                  {/* Кнопка открытия чата для принятых обменов */}
+                  {activeTab !== "chats" &&
+                    trade.status === "accepted" &&
+                    trade.chat_id && (
+                      <Link href={`/chat/${trade.chat_id}`} className="w-full">
+                        <button className="w-full py-2 bg-blue-500 text-white rounded-lg text-sm font-medium mt-2">
+                          💬 Перейти к чату
+                        </button>
+                      </Link>
+                    )}
                 </div>
               );
             })}
