@@ -135,7 +135,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="flex-1 pt-[88px] pb-[124px] px-4 overflow-y-auto flex flex-col-reverse">
+      <div className="flex-1 pt-[88px] pb-[120px] px-4 overflow-y-auto flex flex-col-reverse">
         <div ref={messagesEndRef}></div>
         {!messages || messages.length === 0 ? (
           <div className="text-center text-gray-500 my-10">
@@ -173,7 +173,7 @@ export default function ChatPage() {
         )}
       </div>
 
-      <div className="p-4 border-t bg-white flex items-center gap-2">
+      <div className="fixed bottom-4 left-0 right-0 p-4 pb-[60px] border-t bg-white flex items-center gap-2 z-10">
         <input
           type="text"
           value={newMessage}
