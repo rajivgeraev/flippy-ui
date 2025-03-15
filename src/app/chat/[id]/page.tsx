@@ -135,8 +135,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Прокручиваемая область сообщений с отступом сверху */}
-      <div className="flex-1 pt-[88px] pb-20 px-4 overflow-y-auto flex flex-col-reverse">
+      <div className="flex-1 pt-[88px] pb-[124px] px-4 overflow-y-auto flex flex-col-reverse">
         <div ref={messagesEndRef}></div>
         {!messages || messages.length === 0 ? (
           <div className="text-center text-gray-500 my-10">
@@ -174,8 +173,7 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* Нижняя панель ввода сообщения */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 border-t bg-white flex items-center gap-2">
+      <div className="p-4 border-t bg-white flex items-center gap-2">
         <input
           type="text"
           value={newMessage}

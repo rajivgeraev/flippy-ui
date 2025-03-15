@@ -29,26 +29,41 @@ export default function ProductCard({ product, userToys }: ProductProps) {
     "https://via.placeholder.com/300x300?text=Нет+изображения";
   const hasImages = product.images && product.images.length > 0;
 
-  // Обрезаем описание, если оно слишком длинное
-  const shortDescription =
-    product.description && product.description.length > 100
-      ? `${product.description.substring(0, 100)}...`
-      : product.description;
+  // Настройки пагинации
+  const paginationOptions = {
+    clickable: true,
+    renderBullet: function (index: number, className: string) {
+      return `<span class="${className}" 
+                style="width: 8px; 
+                       height: 8px; 
+                       margin: 0 4px; 
+                       background-color: white;
+                       opacity: 0.6;
+                       transition: opacity 0.3s, transform 0.3s;">
+              </span>`;
+    }
+  };
+
+  // Пользовательские CSS-переменные для Swiper
+  const swiperStyle = {
+    "--swiper-pagination-color": "#ffffff",
+    "--swiper-pagination-bullet-inactive-color": "rgba(255, 255, 255, 0.6)",
+    "--swiper-pagination-bullet-active-opacity": "1",
+    "--swiper-pagination-bullet-size": "8px",
+  } as React.CSSProperties;
 
   return (
-    <div
-      className="relative w-full shadow-lg rounded-2xl flex flex-col overflow-hidden cursor-pointer"
-      onClick={() => {}}
-    >
-      <div className="relative w-full h-52">
+    <div className="relative w-full shadow-lg rounded-2xl flex flex-col overflow-hidden cursor-pointer h-[320px]">
+      <div className="relative w-full h-40">
         {hasImages ? (
           <Swiper
             modules={[Pagination]}
-            pagination={{ clickable: true }}
+            pagination={paginationOptions}
             spaceBetween={10}
             slidesPerView={1}
             loop={hasImages && product.images.length > 1}
             className="w-full h-full"
+            style={swiperStyle}
           >
             {product.images.map((img, index) => (
               <SwiperSlide key={index}>
@@ -57,12 +72,30 @@ export default function ProductCard({ product, userToys }: ProductProps) {
                   alt={`${product.name} - изображение ${index + 1}`}
                   className="w-full h-full object-cover object-center"
                   onError={(e) => {
-                    // Заменяем битые изображения на placeholder
                     (e.target as HTMLImageElement).src = defaultImage;
                   }}
                 />
               </SwiperSlide>
             ))}
+            
+            {/* Градиентная затемненная полоса внизу изображения */}
+            <div className="absolute bottom-0 left-0 right-0 h-16 z-10 pointer-events-none"
+                 style={{
+                   background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0) 100%)'
+                 }}>
+            </div>
+            
+            {/* Дополнительные стили для пагинации */}
+            <style jsx global>{`
+              .swiper-pagination {
+                bottom: 10px !important;
+                z-index: 20;
+              }
+              .swiper-pagination-bullet-active {
+                opacity: 1 !important;
+                transform: scale(1.2);
+              }
+            `}</style>
           </Swiper>
         ) : (
           <img
@@ -72,7 +105,7 @@ export default function ProductCard({ product, userToys }: ProductProps) {
           />
         )}
         <button
-          className="absolute top-2.5 right-2.5 z-10"
+          className="absolute top-2.5 right-2.5 z-30"
           onClick={(e) => {
             e.stopPropagation();
             setFavorite(!favorite);
@@ -88,10 +121,10 @@ export default function ProductCard({ product, userToys }: ProductProps) {
           />
         </button>
       </div>
-      <div className="p-4 flex flex-col gap-2 flex-grow">
-        <h3 className="text-lg font-semibold">{product.name}</h3>
-        <p className="text-sm text-gray-600">
-          {shortDescription || "Нет описания"}
+      <div className="p-4 flex flex-col gap-2 flex-1">
+        <h3 className="text-lg font-semibold line-clamp-1">{product.name}</h3>
+        <p className="text-sm text-gray-600 flex-1 overflow-hidden line-clamp-2">
+          {product.description || "Нет описания"}
         </p>
         <div className="mt-auto pb-1 flex space-x-2">
           <button
