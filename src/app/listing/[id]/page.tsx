@@ -12,6 +12,7 @@ import {
   MapPin,
   Calendar,
   Info,
+  Maximize,
 } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Navigation, Zoom } from "swiper/modules";
@@ -20,6 +21,7 @@ import "swiper/css/pagination";
 import "swiper/css/navigation";
 import "swiper/css/zoom";
 import TradeModal from "@/components/TradeModal";
+import FullscreenImageViewer from "@/components/FullscreenImageViewer";
 import { useMyListingsForTrade } from "@/hooks/useMyListingsForTrade";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { ListingService } from "@/services/listingService";
@@ -48,6 +50,10 @@ export default function ListingDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [product, setProduct] = useState<any>(null);
   const [authRequired, setAuthRequired] = useState(false);
+
+  // Состояние для полноэкранного просмотра
+  const [fullscreenOpen, setFullscreenOpen] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Получаем список игрушек пользователя для обмена
   const { userToys, loading: toysLoading } = useMyListingsForTrade();
@@ -121,6 +127,12 @@ export default function ListingDetailPage() {
       newState[index] = true;
       return newState;
     });
+  };
+
+  // Обработчик открытия полноэкранного просмотра
+  const handleOpenFullscreen = (index: number) => {
+    setActiveImageIndex(index);
+    setFullscreenOpen(true);
   };
 
   // Возвращаемся на предыдущую страницу
@@ -201,7 +213,7 @@ export default function ListingDetailPage() {
   const hasImages = product.images && product.images.length > 0;
 
   return (
-    <div className="pb-24">
+    <div className="pb-32">
       {/* Верхняя панель */}
       <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-white shadow-sm">
         <button onClick={handleGoBack} className="p-1">
@@ -224,43 +236,59 @@ export default function ListingDetailPage() {
       </div>
 
       {/* Галерея изображений */}
-      <div className="w-full h-72 bg-gray-100">
+      <div className="w-full h-72 bg-gray-100 relative">
         {hasImages ? (
-          <Swiper
-            modules={[Pagination, Navigation, Zoom]}
-            pagination={{ clickable: true }}
-            navigation
-            zoom={true}
-            className="w-full h-full"
-            spaceBetween={0}
-            slidesPerView={1}
-          >
-            {product.images.map((img: string, index: number) => (
-              <SwiperSlide key={index}>
-                <div className="w-full h-full flex items-center justify-center">
-                  {!imagesLoaded[index] && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                      <div className="w-8 h-8 border-4 border-t-blue-500 rounded-full animate-spin"></div>
+          <>
+            {/* Кнопка для перехода в полноэкранный режим */}
+            <button
+              className="absolute top-2 right-2 z-20 bg-black bg-opacity-50 text-white p-1.5 rounded-md"
+              onClick={() => handleOpenFullscreen(0)}
+            >
+              <Maximize className="w-5 h-5" />
+            </button>
+
+            <Swiper
+              modules={[Pagination, Navigation, Zoom]}
+              pagination={{ clickable: true }}
+              navigation
+              zoom={true}
+              className="w-full h-full"
+              spaceBetween={0}
+              slidesPerView={1}
+              onSlideChange={(swiper) =>
+                setActiveImageIndex(swiper.activeIndex)
+              }
+            >
+              {product.images.map((img: string, index: number) => (
+                <SwiperSlide key={index}>
+                  <div
+                    className="w-full h-full flex items-center justify-center"
+                    onClick={() => handleOpenFullscreen(index)}
+                  >
+                    {!imagesLoaded[index] && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                        <div className="w-8 h-8 border-4 border-t-blue-500 rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                    <div className="swiper-zoom-container">
+                      <img
+                        src={img}
+                        alt={`${product.name} - изображение ${index + 1}`}
+                        className={`w-full h-full object-contain ${
+                          !imagesLoaded[index] ? "opacity-0" : "opacity-100"
+                        }`}
+                        onLoad={() => handleImageLoad(index)}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = defaultImage;
+                          handleImageLoad(index);
+                        }}
+                      />
                     </div>
-                  )}
-                  <div className="swiper-zoom-container">
-                    <img
-                      src={img}
-                      alt={`${product.name} - изображение ${index + 1}`}
-                      className={`w-full h-full object-contain ${
-                        !imagesLoaded[index] ? "opacity-0" : "opacity-100"
-                      }`}
-                      onLoad={() => handleImageLoad(index)}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = defaultImage;
-                        handleImageLoad(index);
-                      }}
-                    />
                   </div>
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </>
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <img
@@ -382,7 +410,7 @@ export default function ListingDetailPage() {
       </div>
 
       {/* Фиксированная панель снизу */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t flex gap-2">
+      <div className="fixed bottom-[60px] left-0 right-0 p-4 bg-white border-t flex gap-2 shadow-md">
         <button
           className="flex-1 bg-gray-100 text-gray-800 rounded-lg p-3 flex items-center justify-center gap-2"
           onClick={() => {
@@ -409,6 +437,16 @@ export default function ListingDetailPage() {
         receiverListingId={product.id.toString()}
         allowSale={false}
       />
+
+      {/* Полноэкранный просмотр изображений */}
+      {hasImages && (
+        <FullscreenImageViewer
+          isOpen={fullscreenOpen}
+          onClose={() => setFullscreenOpen(false)}
+          images={product.images}
+          initialIndex={activeImageIndex}
+        />
+      )}
     </div>
   );
 }
