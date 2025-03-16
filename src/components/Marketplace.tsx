@@ -59,11 +59,19 @@ export default function Marketplace() {
             const isLastElement = index === listings.length - 1;
 
             // Преобразуем данные для ProductCard
+            // Теперь передаем полный объект изображения с url и preview_url
             const productData = {
               id: listing.id,
               name: listing.title,
               description: listing.description,
-              images: listing.images.map((img) => img.url),
+              // Передаем объекты изображений с preview_url вместо только url
+              images: listing.images.map((img) => ({
+                url: img.url,
+                preview_url: img.preview_url,
+              })),
+              condition: listing.condition,
+              categories: listing.categories,
+              createdAt: listing.created_at,
               allowSale: false, // пока не поддерживаем продажу
             };
 

@@ -1,28 +1,47 @@
+// src/components/ProductCard.tsx
 "use client";
 
 import { useState } from "react";
-import { Heart, Eye } from "lucide-react";
+import { Heart } from "lucide-react";
 import "swiper/css";
 import "swiper/css/pagination";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination } from "swiper/modules";
-import TradeModal from "@/components/TradeModal";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+// Обновленный интерфейс для изображений с поддержкой preview_url
+interface ProductImage {
+  url: string;
+  preview_url?: string;
+}
 
 interface ProductProps {
   product: {
     id: string | number;
     name: string;
     description: string;
-    images: string[];
+    // Обновленный тип для изображений - теперь может быть как строка, так и объект с url и preview_url
+    images: (string | ProductImage)[];
+    condition?: string;
+    categories?: string[];
+    createdAt?: string;
+    owner?: {
+      name: string;
+      avatar: string;
+      id: string;
+      rating?: number;
+      joinedDate?: string;
+    };
     allowSale?: boolean;
+    ageGroup?: string;
+    location?: string;
   };
   userToys: { id: number | string; name: string; image: string }[];
 }
 
 export default function ProductCard({ product, userToys }: ProductProps) {
   const [favorite, setFavorite] = useState(false);
-  const [isTradeOpen, setIsTradeOpen] = useState(false);
+  const router = useRouter();
 
   // Используем значение по умолчанию для изображения, если массив пуст
   const defaultImage =
@@ -41,7 +60,7 @@ export default function ProductCard({ product, userToys }: ProductProps) {
                        opacity: 0.6;
                        transition: opacity 0.3s, transform 0.3s;">
               </span>`;
-    }
+    },
   };
 
   // Пользовательские CSS-переменные для Swiper
@@ -52,8 +71,24 @@ export default function ProductCard({ product, userToys }: ProductProps) {
     "--swiper-pagination-bullet-size": "8px",
   } as React.CSSProperties;
 
+  const handleCardClick = () => {
+    router.push(`/listing/${product.id}`);
+  };
+
+  // Функция для определения URL изображения, предпочитая preview_url для карточек
+  const getImageUrl = (image: string | ProductImage): string => {
+    if (typeof image === "string") {
+      return image;
+    }
+    // Если есть preview_url, используем его, иначе используем полный url
+    return image.preview_url || image.url;
+  };
+
   return (
-    <div className="relative w-full shadow-lg rounded-2xl flex flex-col overflow-hidden cursor-pointer h-[320px]">
+    <div
+      onClick={handleCardClick}
+      className="relative w-full shadow-lg rounded-2xl flex flex-col overflow-hidden cursor-pointer h-[320px]"
+    >
       <div className="relative w-full h-40">
         {hasImages ? (
           <Swiper
@@ -64,11 +99,12 @@ export default function ProductCard({ product, userToys }: ProductProps) {
             loop={hasImages && product.images.length > 1}
             className="w-full h-full"
             style={swiperStyle}
+            onClick={(_, event) => event?.stopPropagation()} // Предотвращаем всплытие события при клике на Swiper
           >
             {product.images.map((img, index) => (
               <SwiperSlide key={index}>
                 <img
-                  src={img}
+                  src={getImageUrl(img)}
                   alt={`${product.name} - изображение ${index + 1}`}
                   className="w-full h-full object-cover object-center"
                   onError={(e) => {
@@ -77,14 +113,16 @@ export default function ProductCard({ product, userToys }: ProductProps) {
                 />
               </SwiperSlide>
             ))}
-            
+
             {/* Градиентная затемненная полоса внизу изображения */}
-            <div className="absolute bottom-0 left-0 right-0 h-16 z-10 pointer-events-none"
-                 style={{
-                   background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0) 100%)'
-                 }}>
-            </div>
-            
+            <div
+              className="absolute bottom-0 left-0 right-0 h-16 z-10 pointer-events-none"
+              style={{
+                background:
+                  "linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0) 100%)",
+              }}
+            ></div>
+
             {/* Дополнительные стили для пагинации */}
             <style jsx global>{`
               .swiper-pagination {
@@ -131,22 +169,13 @@ export default function ProductCard({ product, userToys }: ProductProps) {
             className="w-full bg-blue-500 text-white rounded-lg p-2"
             onClick={(e) => {
               e.stopPropagation();
-              setIsTradeOpen(true);
+              router.push(`/listing/${product.id}`);
             }}
           >
             К обмену
           </button>
         </div>
       </div>
-
-      {/* Модальное окно "Предложить обмен" */}
-      <TradeModal
-        isOpen={isTradeOpen}
-        onClose={() => setIsTradeOpen(false)}
-        userToys={userToys}
-        receiverListingId={product.id.toString()}
-        allowSale={product.allowSale}
-      />
     </div>
   );
 }
