@@ -1,5 +1,6 @@
 import { Listing } from './listings';
 
+// src/types/trades.ts
 export interface Trade {
     id: string;
     sender_id: string;
@@ -16,8 +17,8 @@ export interface Trade {
     receiver_listing?: Listing;
     sender?: User;
     receiver?: User;
+    chat_id?: string;
 }
-
 export interface User {
     id: string;
     username?: string;

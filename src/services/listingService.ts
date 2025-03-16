@@ -2,6 +2,7 @@
 import { AuthService } from './auth';
 import {
     Listing,
+    ListingImage,
     CreateListingData,
     ListingsListResponse,
     ListingDetailResponse,
@@ -80,6 +81,9 @@ export class ListingService {
             });
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    throw new Error('Требуется авторизация для просмотра объявления');
+                }
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Ошибка при получении объявления');
             }
@@ -108,7 +112,7 @@ export class ListingService {
             };
 
             const response = await AuthService.fetchWithAuth(`${process.env.NEXT_PUBLIC_API_URL}/api/listings/${id}`, {
-                method: 'PUT',  // Используем PUT для обновления
+                method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -142,6 +146,27 @@ export class ListingService {
             return await response.json();
         } catch (error) {
             console.error('Ошибка при удалении объявления:', error);
+            throw error;
+        }
+    }
+
+    // Получение публичных объявлений (без авторизации)
+    static async getPublicListings(offset: number = 0, limit: number = 20): Promise<ListingsListResponse> {
+        try {
+            const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/listings`);
+            url.searchParams.append('offset', offset.toString());
+            url.searchParams.append('limit', limit.toString());
+
+            const response = await fetch(url.toString());
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка при получении публичных объявлений');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Ошибка при получении публичных объявлений:', error);
             throw error;
         }
     }
