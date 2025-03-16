@@ -43,9 +43,9 @@ export function init(): void {
       initData.restore();
 
       void viewport.mount().then((data) => {
-        // if (viewport.expand.isAvailable()) {
-        //   viewport.expand();
-        // }
+        if (viewport.expand.isAvailable()) {
+          viewport.expand();
+        }
         // viewport.bindCssVars();
       }).catch(e => {
         console.error('Something went wrong mounting the viewport', e);
