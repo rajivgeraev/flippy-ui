@@ -1,6 +1,7 @@
+// src/app/listing/[id]/page.tsx
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Heart,
@@ -13,8 +14,9 @@ import {
   Calendar,
   Info,
   Maximize,
+  Loader2,
 } from "lucide-react";
-import { Swiper, SwiperSlide } from "swiper/react";
+import { Swiper, SwiperSlide, SwiperClass } from "swiper/react";
 import { Pagination, Navigation, Zoom } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
@@ -24,6 +26,7 @@ import TradeModal from "@/components/TradeModal";
 import FullscreenImageViewer from "@/components/FullscreenImageViewer";
 import { useMyListingsForTrade } from "@/hooks/useMyListingsForTrade";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useFavorites } from "@/hooks/useFavorites";
 import { ListingService } from "@/services/listingService";
 import Link from "next/link";
 
@@ -42,10 +45,13 @@ export default function ListingDetailPage() {
   const params = useParams();
   const listingId = params.id as string;
   const { isAuthenticated, isLoading: authLoading } = useAuthContext();
+  const { checkFavorite, addToFavorites, removeFromFavorites } = useFavorites();
 
   const [favorite, setFavorite] = useState(false);
+  const [isLoadingFavorite, setIsLoadingFavorite] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isTradeOpen, setIsTradeOpen] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState<boolean[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [product, setProduct] = useState<any>(null);
@@ -55,15 +61,32 @@ export default function ListingDetailPage() {
   const [fullscreenOpen, setFullscreenOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+  // Ref для управления Swiper
+  const swiperRef = useRef<SwiperClass | null>(null);
+
   // Получаем список игрушек пользователя для обмена
   const { userToys, loading: toysLoading } = useMyListingsForTrade();
 
-  // Загружаем детали объявления
+  // Загружаем детали объявления и проверяем статус избранного
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && listingId) {
       fetchListing();
+      if (isAuthenticated) {
+        checkFavoriteStatus();
+      }
     }
   }, [listingId, isAuthenticated, authLoading]);
+
+  // Очистка сообщений через 3 секунды
+  useEffect(() => {
+    if (errorMessage || successMessage) {
+      const timer = setTimeout(() => {
+        setErrorMessage(null);
+        setSuccessMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage, successMessage]);
 
   // Функция для загрузки данных объявления
   const fetchListing = async () => {
@@ -73,10 +96,8 @@ export default function ListingDetailPage() {
       setLoading(true);
       setError(null);
 
-      // Используем сервис ListingService для получения данных объявления
       const response = await ListingService.getListing(listingId).catch(
         (err) => {
-          // Если ошибка связана с авторизацией, устанавливаем флаг
           if (err.message.includes("авторизация")) {
             setAuthRequired(true);
           }
@@ -84,7 +105,6 @@ export default function ListingDetailPage() {
         }
       );
 
-      // Форматируем данные для отображения
       setProduct({
         id: response.listing.id,
         name: response.listing.title,
@@ -100,15 +120,9 @@ export default function ListingDetailPage() {
             response.user.last_name || ""
           }`.trim(),
           avatar: response.user.avatar_url,
-          // Добавляем доп. информацию о пользователе, если доступна
           joinedDate: response.user.created_at,
         },
       });
-
-      // Инициализируем массив для отслеживания загрузки изображений
-      if (response.listing.images && response.listing.images.length > 0) {
-        setImagesLoaded(new Array(response.listing.images.length).fill(false));
-      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -120,13 +134,46 @@ export default function ListingDetailPage() {
     }
   };
 
-  // Обработчик завершения загрузки изображения
-  const handleImageLoad = (index: number) => {
-    setImagesLoaded((prev) => {
-      const newState = [...prev];
-      newState[index] = true;
-      return newState;
-    });
+  // Проверка статуса избранного
+  const checkFavoriteStatus = async () => {
+    try {
+      const isFavorite = await checkFavorite(listingId);
+      setFavorite(isFavorite);
+    } catch (err) {
+      console.error("Ошибка при проверке статуса избранного:", err);
+    }
+  };
+
+  // Обработчик переключения избранного
+  const toggleFavorite = async () => {
+    if (!isAuthenticated) {
+      setErrorMessage("Авторизуйтесь, чтобы добавить в избранное");
+      return;
+    }
+
+    setIsLoadingFavorite(true);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    try {
+      const success = favorite
+        ? await removeFromFavorites(listingId)
+        : await addToFavorites(listingId);
+
+      if (success) {
+        setFavorite(!favorite);
+        setSuccessMessage(
+          favorite ? "Удалено из избранного" : "Добавлено в избранное"
+        );
+      } else {
+        setErrorMessage("Не удалось выполнить операцию");
+      }
+    } catch (error) {
+      console.error("Ошибка при изменении статуса избранного:", error);
+      setErrorMessage("Произошла ошибка. Попробуйте еще раз.");
+    } finally {
+      setIsLoadingFavorite(false);
+    }
   };
 
   // Обработчик открытия полноэкранного просмотра
@@ -140,7 +187,20 @@ export default function ListingDetailPage() {
     router.back();
   };
 
-  // Показываем экран авторизации, если требуется
+  // Стили для уведомлений
+  const notificationStyles = {
+    animation: "fadeInOut 3s ease-in-out forwards",
+  };
+
+  const animationKeyframes = `
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translate(-50%, -10px); }
+      10% { opacity: 1; transform: translate(-50%, 0); }
+      90% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -10px); }
+    }
+  `;
+
   if (authRequired && !isAuthenticated) {
     return (
       <div className="p-6 max-w-lg mx-auto mt-10 bg-yellow-50 rounded-lg">
@@ -162,7 +222,6 @@ export default function ListingDetailPage() {
     );
   }
 
-  // Показываем индикатор загрузки
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -171,7 +230,6 @@ export default function ListingDetailPage() {
     );
   }
 
-  // Показываем сообщение об ошибке
   if (error) {
     return (
       <div className="p-6 max-w-lg mx-auto mt-10 bg-red-50 rounded-lg">
@@ -187,7 +245,6 @@ export default function ListingDetailPage() {
     );
   }
 
-  // Показываем сообщение, если объявление не найдено
   if (!product) {
     return (
       <div className="p-6 max-w-lg mx-auto mt-10 bg-yellow-50 rounded-lg">
@@ -207,24 +264,36 @@ export default function ListingDetailPage() {
     );
   }
 
-  // Используем значение по умолчанию для изображения, если массив пуст
   const defaultImage =
     "https://via.placeholder.com/400x400?text=Нет+изображения";
   const hasImages = product.images && product.images.length > 0;
 
   return (
     <div className="pb-32">
+      {/* Добавляем стили для анимации */}
+      <style dangerouslySetInnerHTML={{ __html: animationKeyframes }} />
+
       {/* Верхняя панель */}
       <div className="sticky top-0 z-10 flex justify-between items-center p-4 bg-white shadow-sm">
         <button onClick={handleGoBack} className="p-1">
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div className="flex gap-2">
-          <button onClick={() => setFavorite(!favorite)} className="p-1">
-            <Heart
-              className={favorite ? "text-red-500" : "text-gray-500"}
-              fill={favorite ? "red" : "none"}
-            />
+          <button
+            onClick={toggleFavorite}
+            className={`p-1 ${
+              isLoadingFavorite ? "opacity-50 cursor-wait" : ""
+            }`}
+            disabled={isLoadingFavorite}
+          >
+            {isLoadingFavorite ? (
+              <Loader2 className="w-6 h-6 animate-spin text-gray-500" />
+            ) : (
+              <Heart
+                className={favorite ? "text-red-500" : "text-gray-500"}
+                fill={favorite ? "red" : "none"}
+              />
+            )}
           </button>
           <button className="p-1">
             <Share2 className="w-6 h-6 text-gray-500" />
@@ -235,62 +304,77 @@ export default function ListingDetailPage() {
         </div>
       </div>
 
-      {/* Галерея изображений */}
-      <div className="w-full h-72 bg-gray-100 relative">
+      {/* Блок изображений с превью */}
+      <div className="w-full bg-gray-100 relative z-0">
         {hasImages ? (
-          <>
-            {/* Кнопка для перехода в полноэкранный режим */}
-            <button
-              className="absolute top-2 right-2 z-20 bg-black bg-opacity-50 text-white p-1.5 rounded-md"
-              onClick={() => handleOpenFullscreen(0)}
-            >
-              <Maximize className="w-5 h-5" />
-            </button>
+          <div className="flex flex-col md:flex-row md:gap-4 max-w-7xl mx-auto">
+            {/* Основной Swiper */}
+            <div className="w-full h-72 md:h-[400px] md:max-w-[calc(100%-96px)] relative">
+              <button
+                className="absolute top-2 right-2 z-20 bg-black bg-opacity-50 text-white p-1.5 rounded-md"
+                onClick={() => handleOpenFullscreen(0)}
+              >
+                <Maximize className="w-5 h-5" />
+              </button>
 
-            <Swiper
-              modules={[Pagination, Navigation, Zoom]}
-              pagination={{ clickable: true }}
-              navigation
-              zoom={true}
-              className="w-full h-full"
-              spaceBetween={0}
-              slidesPerView={1}
-              onSlideChange={(swiper) =>
-                setActiveImageIndex(swiper.activeIndex)
-              }
-            >
-              {product.images.map((img: string, index: number) => (
-                <SwiperSlide key={index}>
-                  <div
-                    className="w-full h-full flex items-center justify-center"
-                    onClick={() => handleOpenFullscreen(index)}
-                  >
-                    {!imagesLoaded[index] && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                        <div className="w-8 h-8 border-4 border-t-blue-500 rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                    <div className="swiper-zoom-container">
+              <Swiper
+                modules={[Pagination, Navigation, Zoom]}
+                // pagination={{ clickable: true }}
+                // navigation
+                zoom={true}
+                observer={true}
+                observeParents={true}
+                className="w-full h-full"
+                spaceBetween={0}
+                slidesPerView={1}
+                onSlideChange={(swiper) =>
+                  setActiveImageIndex(swiper.activeIndex)
+                }
+                onSwiper={(swiper) => (swiperRef.current = swiper)}
+              >
+                {product.images.map((img: string, index: number) => (
+                  <SwiperSlide key={index}>
+                    <div
+                      className="w-full h-full flex items-center justify-center"
+                      onClick={() => handleOpenFullscreen(index)}
+                    >
                       <img
                         src={img}
                         alt={`${product.name} - изображение ${index + 1}`}
-                        className={`w-full h-full object-contain ${
-                          !imagesLoaded[index] ? "opacity-0" : "opacity-100"
-                        }`}
-                        onLoad={() => handleImageLoad(index)}
+                        className="w-full h-full object-contain"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = defaultImage;
-                          handleImageLoad(index);
                         }}
                       />
                     </div>
-                  </div>
-                </SwiperSlide>
+                  </SwiperSlide>
+                ))}
+              </Swiper>
+            </div>
+
+            {/* Превью изображений */}
+            <div className="flex md:flex-col gap-2 p-2 overflow-x-auto md:overflow-y-auto md:w-24 md:h-[400px] bg-white">
+              {product.images.map((img: string, index: number) => (
+                <img
+                  key={index}
+                  src={img}
+                  alt={`Превью ${index + 1}`}
+                  className={`w-16 h-16 md:w-20 md:h-20 object-cover rounded-md cursor-pointer transition-opacity ${
+                    activeImageIndex === index
+                      ? "opacity-100 border-2 border-blue-500"
+                      : "opacity-60 hover:opacity-80"
+                  }`}
+                  onClick={() => swiperRef.current?.slideTo(index)}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "https://via.placeholder.com/100x100?text=Нет+превью";
+                  }}
+                />
               ))}
-            </Swiper>
-          </>
+            </div>
+          </div>
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
+          <div className="w-full h-72 flex items-center justify-center">
             <img
               src={defaultImage}
               alt={product.name}
@@ -304,17 +388,13 @@ export default function ListingDetailPage() {
       <div className="p-4">
         <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
 
-        {/* Основная информация */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {/* Состояние */}
           {product.condition && (
             <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full flex items-center gap-1">
               <Info className="w-3 h-3" />
               {conditionLabels[product.condition] || product.condition}
             </span>
           )}
-
-          {/* Дата публикации */}
           {product.createdAt && (
             <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full flex items-center gap-1 ml-auto">
               <Calendar className="w-3 h-3" />
@@ -323,7 +403,6 @@ export default function ListingDetailPage() {
           )}
         </div>
 
-        {/* Местоположение */}
         {product.location && (
           <div className="mb-4 text-sm text-gray-600 flex items-center gap-1">
             <MapPin className="w-4 h-4 text-gray-500" />
@@ -331,7 +410,6 @@ export default function ListingDetailPage() {
           </div>
         )}
 
-        {/* Описание */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold mb-2">Описание</h2>
           <p className="text-gray-700 whitespace-pre-line">
@@ -339,7 +417,6 @@ export default function ListingDetailPage() {
           </p>
         </div>
 
-        {/* Категории */}
         {product.categories && product.categories.length > 0 && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-2">Категории</h2>
@@ -356,7 +433,6 @@ export default function ListingDetailPage() {
           </div>
         )}
 
-        {/* Возрастная группа */}
         {product.ageGroup && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold mb-2">Возрастная группа</h2>
@@ -364,7 +440,6 @@ export default function ListingDetailPage() {
           </div>
         )}
 
-        {/* Информация о владельце */}
         {product.owner && (
           <div className="mb-6 p-4 bg-gray-50 rounded-lg">
             <h2 className="text-lg font-semibold mb-3">Владелец</h2>
@@ -428,6 +503,24 @@ export default function ListingDetailPage() {
           Предложить обмен
         </button>
       </div>
+
+      {/* Всплывающие сообщения */}
+      {errorMessage && (
+        <div
+          className="fixed top-16 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-4 py-2 rounded-lg text-sm shadow-lg z-50"
+          style={notificationStyles}
+        >
+          {errorMessage}
+        </div>
+      )}
+      {successMessage && (
+        <div
+          className="fixed top-16 left-1/2 transform -translate-x-1/2 bg-green-500 text-white px-4 py-2 rounded-lg text-sm shadow-lg z-50"
+          style={notificationStyles}
+        >
+          {successMessage}
+        </div>
+      )}
 
       {/* Модальное окно "Предложить обмен" */}
       <TradeModal
