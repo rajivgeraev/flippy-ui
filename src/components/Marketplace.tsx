@@ -1,10 +1,13 @@
+// src/components/Marketplace.tsx
 "use client";
 
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useCallback, useEffect, useState } from "react";
 import ProductCard from "@/components/ProductCard";
 import { usePublicListings } from "@/hooks/usePublicListings";
 import { useMyListingsForTrade } from "@/hooks/useMyListingsForTrade";
+import { useFavorites } from "@/hooks/useFavorites";
 import { Loader2, AlertCircle } from "lucide-react";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 export default function Marketplace() {
   const { listings, loading, error, loadMore, hasMore } = usePublicListings();
@@ -13,6 +16,14 @@ export default function Marketplace() {
     loading: toysLoading,
     error: toysError,
   } = useMyListingsForTrade();
+
+  const { isAuthenticated } = useAuthContext();
+  const { checkFavorite, addToFavorites, removeFromFavorites } = useFavorites();
+  const [favoriteStatuses, setFavoriteStatuses] = useState<
+    Record<string, boolean>
+  >({});
+  const [isCheckingFavorites, setIsCheckingFavorites] = useState(false);
+  const checkedListingIds = useRef<Set<string>>(new Set());
 
   // Для бесконечной прокрутки
   const observer = useRef<IntersectionObserver | null>(null);
@@ -32,6 +43,76 @@ export default function Marketplace() {
     },
     [loading, hasMore, loadMore]
   );
+
+  // Оптимизированная проверка избранных объявлений
+  useEffect(() => {
+    // Если не авторизован или загрузка - пропускаем
+    if (!isAuthenticated || listings.length === 0 || isCheckingFavorites)
+      return;
+
+    const checkNewFavorites = async () => {
+      // Проверяем, есть ли новые объявления, которые еще не проверены
+      const newListings = listings.filter(
+        (listing) => !checkedListingIds.current.has(listing.id.toString())
+      );
+
+      // Если нет новых объявлений - пропускаем
+      if (newListings.length === 0) return;
+
+      setIsCheckingFavorites(true);
+
+      try {
+        const newStatuses: Record<string, boolean> = {};
+
+        // Проверяем только новые, ранее не проверенные объявления
+        for (const listing of newListings) {
+          const listingId = listing.id.toString();
+          const isFavorite = await checkFavorite(listingId);
+          newStatuses[listingId] = isFavorite;
+
+          // Отмечаем, что это объявление уже проверено
+          checkedListingIds.current.add(listingId);
+        }
+
+        // Обновляем статусы только для новых объявлений
+        setFavoriteStatuses((prev) => ({ ...prev, ...newStatuses }));
+      } catch (err) {
+        console.error("Ошибка при проверке избранных объявлений:", err);
+      } finally {
+        setIsCheckingFavorites(false);
+      }
+    };
+
+    checkNewFavorites();
+  }, [isAuthenticated, listings, checkFavorite, isCheckingFavorites]);
+
+  // Функция для обработки переключения избранного
+  const handleFavoriteToggle = async (
+    listingId: string,
+    isFavorite: boolean
+  ) => {
+    try {
+      let success = false;
+
+      if (isFavorite) {
+        // Если уже в избранном - удаляем
+        success = await removeFromFavorites(listingId);
+      } else {
+        // Если не в избранном - добавляем
+        success = await addToFavorites(listingId);
+      }
+
+      // Если операция успешна, обновляем локальное состояние
+      if (success) {
+        setFavoriteStatuses((prev) => ({
+          ...prev,
+          [listingId]: !isFavorite,
+        }));
+      }
+    } catch (error) {
+      console.error("Ошибка при изменении статуса избранного:", error);
+    }
+  };
 
   return (
     <div className="pb-16">
@@ -57,21 +138,18 @@ export default function Marketplace() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
           {listings.map((listing, index) => {
             const isLastElement = index === listings.length - 1;
+            const listingId = listing.id.toString();
+            const isFavorite = favoriteStatuses[listingId] || false;
 
             // Преобразуем данные для ProductCard
-            // Теперь передаем полный объект изображения с url и preview_url
             const productData = {
               id: listing.id,
               name: listing.title,
               description: listing.description,
-              // Передаем объекты изображений с preview_url вместо только url
               images: listing.images.map((img) => ({
                 url: img.url,
-                preview_url: img.preview_url,
+                preview_url: img.preview_url || img.url,
               })),
-              condition: listing.condition,
-              categories: listing.categories,
-              createdAt: listing.created_at,
               allowSale: false, // пока не поддерживаем продажу
             };
 
@@ -80,7 +158,14 @@ export default function Marketplace() {
                 key={listing.id}
                 ref={isLastElement ? lastListingElementRef : null}
               >
-                <ProductCard product={productData} userToys={userToys} />
+                <ProductCard
+                  product={productData}
+                  userToys={userToys}
+                  isFavorite={isFavorite}
+                  onFavoriteToggle={() =>
+                    handleFavoriteToggle(listingId, isFavorite)
+                  }
+                />
               </div>
             );
           })}
