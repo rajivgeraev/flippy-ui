@@ -53,49 +53,54 @@ export function useFavorites() {
     // Функция для загрузки избранных объявлений
     const fetchFavorites = useCallback(async (resetOffset = false) => {
         if (!isAuthenticated) {
+            setFavorites([]);  // Устанавливаем пустой массив при отсутствии аутентификации
+            setTotal(0);
+            setHasMore(false);
             return;
         }
-
+    
         try {
             setLoading(true);
             setError(null);
-
+    
             const newOffset = resetOffset ? 0 : offset;
             if (resetOffset) {
                 setOffset(0);
                 setFavorites([]);
             }
-
+    
             // Параметры запроса
             const url = new URL(`${process.env.NEXT_PUBLIC_API_URL}/api/favorites`);
             url.searchParams.append('offset', newOffset.toString());
-
+    
             // Выполняем запрос к API
             const response = await AuthService.fetchWithAuth(url.toString());
-
+    
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || 'Ошибка при получении избранных объявлений');
             }
-
+    
             const data: FavoritesResponse = await response.json();
-
+    
             if (resetOffset) {
-                setFavorites(data.favorites);
+                setFavorites(data.favorites || []);  // Добавляем проверку на undefined
             } else {
-                setFavorites(prev => [...prev, ...data.favorites]);
+                setFavorites(prev => [...prev, ...(data.favorites || [])]);  // Добавляем проверку на undefined
             }
-
-            setTotal(data.total);
-            setHasMore(newOffset + data.limit < data.total);
-
+    
+            setTotal(data.total || 0);  // Добавляем проверку на undefined
+            setHasMore(newOffset + (data.limit || 0) < (data.total || 0));
+    
             // Обновляем кэш для всех полученных объявлений
-            data.favorites.forEach(favorite => {
-                favoritesCache.current[favorite.listing_id] = {
-                    status: true,
-                    timestamp: Date.now()
-                };
-            });
+            if (data.favorites && Array.isArray(data.favorites)) {
+                data.favorites.forEach(favorite => {
+                    favoritesCache.current[favorite.listing_id] = {
+                        status: true,
+                        timestamp: Date.now()
+                    };
+                });
+            }
 
         } catch (err) {
             console.error('Ошибка при загрузке избранных объявлений:', err);
